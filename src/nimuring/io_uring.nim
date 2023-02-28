@@ -299,15 +299,18 @@ type
 ##  			them from sends.
 ##
 
-var IORING_CQE_F_BUFFER* {.importc: "IORING_CQE_F_BUFFER", header: "<liburing.h>".}: int
 const
+  IORING_CQE_F_BUFFER* = (1'u shl 0)
+  IORING_CQE_F_MORE* = (1'u shl 1)
+  IORING_CQE_F_SOCK_NONEMPTY* = (1'u shl 2)
+  IORING_CQE_F_NOTIF* = (1'u shl 3)
   IORING_CQE_BUFFER_SHIFT* = 16
 
-##
-##  Magic offsets for the application to mmap the data it needs
-##
+const
+  IORING_SQ_NEED_WAKEUP* = (1'u shl 0) ##  needs io_uring_enter wakeup
+  IORING_SQ_CQ_OVERFLOW* = (1'u shl 1) ##  CQ ring is overflown
+  IORING_SQ_TASKRUN* = (1'u shl 2) ##  task should enter the kernel
 
-var IORING_OFF_SQ_RING* {.importc: "IORING_OFF_SQ_RING", header: "<liburing.h>".}: int
 type
   IoSqringOffsets* {.importc: "struct io_sqring_offsets", header: "<liburing.h>", bycopy.} = object ##
                                                                                    ##
@@ -333,7 +336,6 @@ type
 ##  sq_ring->flags
 ##
 
-var IORING_SQ_NEED_WAKEUP* {.importc: "IORING_SQ_NEED_WAKEUP", header: "<liburing.h>".}: int
 type
   IoCqringOffsets* {.importc: "struct io_cqring_offsets", header: "<liburing.h>", bycopy.} = object
     head* {.importc: "head".}: U32
@@ -352,14 +354,19 @@ type
 ##
 ##  disable eventfd notifications
 
-var IORING_CQ_EVENTFD_DISABLED* {.importc: "IORING_CQ_EVENTFD_DISABLED",
-                                header: "<liburing.h>".}: int
+const
+  IORING_CQ_EVENTFD_DISABLED* = (1'u shl 0)
 ##
 ##  io_uring_enter(2) flags
 ##
 
-var IORING_ENTER_GETEVENTS* {.importc: "IORING_ENTER_GETEVENTS",
-                            header: "<liburing.h>".}: int
+const
+  IORING_ENTER_GETEVENTS* = (1'u shl 0)
+  IORING_ENTER_SQ_WAKEUP* = (1'u shl 1)
+  IORING_ENTER_SQ_WAIT* = (1'u shl 2)
+  IORING_ENTER_EXT_ARG* = (1'u shl 3)
+  IORING_ENTER_REGISTERED_RING* = (1'u shl 4)
+
 type
   IoUringParams* {.importc: "struct io_uring_params", header: "<liburing.h>", bycopy.} = object ##
                                                                                ##
@@ -391,8 +398,22 @@ type
 ##  io_uring_params->features flags
 ##
 
-var IORING_FEAT_SINGLE_MMAP* {.importc: "IORING_FEAT_SINGLE_MMAP",
-                             header: "<liburing.h>".}: int
+const
+  IORING_FEAT_SINGLE_MMAP* = (1'u shl 0)
+  IORING_FEAT_NODROP* = (1'u shl 1)
+  IORING_FEAT_SUBMIT_STABLE* = (1'u shl 2)
+  IORING_FEAT_RW_CUR_POS* = (1'u shl 3)
+  IORING_FEAT_CUR_PERSONALITY* = (1'u shl 4)
+  IORING_FEAT_FAST_POLL* = (1'u shl 5)
+  IORING_FEAT_POLL_32BITS* = (1'u shl 6)
+  IORING_FEAT_SQPOLL_NONFIXED* = (1'u shl 7)
+  IORING_FEAT_EXT_ARG* = (1'u shl 8)
+  IORING_FEAT_NATIVE_WORKERS* = (1'u shl 9)
+  IORING_FEAT_RSRC_TAGS* = (1'u shl 10)
+  IORING_FEAT_CQE_SKIP* = (1'u shl 11)
+  IORING_FEAT_LINKED_FILE* = (1'u shl 12)
+  IORING_FEAT_REG_REG_RING* = (1'u shl 13)
+
 const
   IORING_REGISTER_BUFFERS* = 0  ##
                             ##  io_uring_register(2) opcodes and arguments

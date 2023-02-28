@@ -79,19 +79,19 @@ proc ioUringRingDontfork*(ring: ref IoUring): cint {.
     importc: "io_uring_ring_dontfork", header: "<liburing.h>".}
 proc ioUringQueueExit*(ring: ref IoUring) {.importc: "io_uring_queue_exit",
                                         header: "<liburing.h>".}
-proc ioUringPeekBatchCqe*(ring: ref IoUring; cqes: ref ptr IoUringCqe; count: cuint): cuint {.
+proc ioUringPeekBatchCqe*(ring: ref IoUring; cqes: ptr ptr IoUringCqe; count: cuint): cuint {.
     importc: "io_uring_peek_batch_cqe", header: "<liburing.h>".}
-proc ioUringWaitCqes*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe; waitNr: cuint;
+proc ioUringWaitCqes*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe; waitNr: cuint;
                      ts: ref KernelTimespec; sigmask: ref SigsetT): cint {.
     importc: "io_uring_wait_cqes", header: "<liburing.h>".}
-proc ioUringWaitCqeTimeout*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe;
+proc ioUringWaitCqeTimeout*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe;
                            ts: ref KernelTimespec): cint {.
     importc: "io_uring_wait_cqe_timeout", header: "<liburing.h>".}
 proc ioUringSubmit*(ring: ref IoUring): cint {.importc: "io_uring_submit",
     header: "<liburing.h>".}
 proc ioUringSubmitAndWait*(ring: ref IoUring; waitNr: cuint): cint {.
     importc: "io_uring_submit_and_wait", header: "<liburing.h>".}
-proc ioUringSubmitAndWaitTimeout*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe;
+proc ioUringSubmitAndWaitTimeout*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe;
                                  waitNr: cuint; ts: ref KernelTimespec;
                                  sigmask: ref SigsetT): cint {.
     importc: "io_uring_submit_and_wait_timeout", header: "<liburing.h>".}
@@ -176,7 +176,7 @@ proc ioUringSetup*(entries: cuint; p: ref IoUringParams): cint {.
     importc: "io_uring_setup", header: "<liburing.h>".}
 proc ioUringRegister*(fd: cuint; opcode: cuint; arg: pointer; nrArgs: cuint): cint {.
     importc: "io_uring_register", header: "<liburing.h>".}
-proc ioUringGetCqe*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe; submit: cuint;
+proc ioUringGetCqe*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe; submit: cuint;
                    waitNr: cuint; sigmask: ref SigsetT): cint {.
     importc: "__io_uring_get_cqe", header: "<liburing.h>".}
   ##
@@ -275,14 +275,14 @@ proc ioUringPrepWriteFixed*(sqe: ptr IoUringSqe; fd: cint; buf: pointer; nbytes:
                            offset: U64; bufIndex: cint) {.
     importc: "io_uring_prep_write_fixed".}
 
-proc ioUringPrepRecvmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepRecvmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Tmsghdr; flags: cuint) {.
     importc: "io_uring_prep_recvmsg".}
 
-proc ioUringPrepRecvmsgMultishot*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr;
+proc ioUringPrepRecvmsgMultishot*(sqe: ptr IoUringSqe; fd: cint; msg: ref Tmsghdr;
                                  flags: cuint) {.
     importc: "io_uring_prep_recvmsg_multishot".}
 
-proc ioUringPrepSendmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepSendmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Tmsghdr; flags: cuint) {.
     importc: "io_uring_prep_sendmsg".}
 
 proc ioUringPrepPollAdd*(sqe: ptr IoUringSqe; fd: cint; pollMask: cuint) {.
@@ -390,7 +390,7 @@ proc ioUringPrepSendZcFixed*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer;
                             len: csize_t; flags: cint; zcFlags: cuint; bufIndex: cuint) {.
     importc: "io_uring_prep_send_zc_fixed".}
 
-proc ioUringPrepSendmsgZc*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepSendmsgZc*(sqe: ptr IoUringSqe; fd: cint; msg: ref Tmsghdr; flags: cuint) {.
     importc: "io_uring_prep_sendmsg_zc".}
 
 proc ioUringPrepSendSetAddr*(sqe: ptr IoUringSqe; destAddr: ref Sockaddr; addrLen: U16) {.
@@ -403,24 +403,24 @@ proc ioUringPrepRecvMultishot*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer;
                               len: csize_t; flags: cint) {.
     importc: "io_uring_prep_recv_multishot".}
 
-proc ioUringRecvmsgValidate*(buf: pointer; bufLen: cint; msgh: ref Msghdr): ref IoUringRecvmsgOut {.
+proc ioUringRecvmsgValidate*(buf: pointer; bufLen: cint; msgh: ref Tmsghdr): ref IoUringRecvmsgOut {.
     importc: "io_uring_recvmsg_validate".}
 
 proc ioUringRecvmsgName*(o: ref IoUringRecvmsgOut): pointer {.
     importc: "io_uring_recvmsg_name".}
 
-proc ioUringRecvmsgCmsgFirsthdr*(o: ref IoUringRecvmsgOut; msgh: ref Msghdr): ref Cmsghdr {.
+proc ioUringRecvmsgCmsgFirsthdr*(o: ref IoUringRecvmsgOut; msgh: ref Tmsghdr): ref Cmsghdr {.
     importc: "io_uring_recvmsg_cmsg_firsthdr".}
 
-proc ioUringRecvmsgCmsgNexthdr*(o: ref IoUringRecvmsgOut; msgh: ref Msghdr;
+proc ioUringRecvmsgCmsgNexthdr*(o: ref IoUringRecvmsgOut; msgh: ref Tmsghdr;
                                cmsg: ref Cmsghdr): ref Cmsghdr {.
     importc: "io_uring_recvmsg_cmsg_nexthdr".}
 
-proc ioUringRecvmsgPayload*(o: ref IoUringRecvmsgOut; msgh: ref Msghdr): pointer {.
+proc ioUringRecvmsgPayload*(o: ref IoUringRecvmsgOut; msgh: ref Tmsghdr): pointer {.
     importc: "io_uring_recvmsg_payload".}
 
 proc ioUringRecvmsgPayloadLength*(o: ref IoUringRecvmsgOut; bufLen: cint;
-                                 msgh: ref Msghdr): cuint {.
+                                 msgh: ref Tmsghdr): cuint {.
     importc: "io_uring_recvmsg_payload_length".}
 
 proc ioUringPrepOpenat2*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; how: ref OpenHow) {.

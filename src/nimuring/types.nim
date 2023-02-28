@@ -4,7 +4,6 @@ import posix, epoll
 type
   KernelTimespec* = Timespec
   SigsetT* = Sigset
-  Msghdr* = TMsghdr
   SocklenT* = SockLen
   OffT* = Off
   ModeT* = Mode
@@ -25,3 +24,4 @@ type
 export IOVec
 export SockAddr
 export EpollEvent
+export Tmsghdr

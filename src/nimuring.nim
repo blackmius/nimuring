@@ -1,2 +1,2 @@
-import nimuring/[io_uring, liburing]
-export io_uring, liburing
+import nimuring/[io_uring, liburing, types]
+export io_uring, liburing, types
