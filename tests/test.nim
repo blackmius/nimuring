@@ -1,8 +1,5 @@
-import nimuring/io_uring
-import os
+import nimuring/liburing
 
-var params: io_uring_params
-let res = io_uring_setup(1, params.addr)
-if res < 0:
-  raiseOSError(osLastError())
-  assert false
+var ring: ref IoUring = (ref IoUring)()
+discard ioUringQueueInit(4, ring, 0)
+

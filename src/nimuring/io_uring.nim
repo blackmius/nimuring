@@ -1,4 +1,5 @@
-import posix
+import types, posix
+
 ##  SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
 ##
 ##  Header file for the io_uring interface.
@@ -13,98 +14,87 @@ import posix
 ##  define UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H
 ##  if linux/time_types.h is not available
 ##
-
-when not defined(UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H):
-  discard
-##
-##  IO submission data structure (Submission Queue Entry)
-##
-
 type
-  INNER_C_STRUCT_io_uring_1* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy.} = object
-    cmd_op* {.importc: "cmd_op".}: uint32
-    pad1* {.importc: "__pad1".}: uint32
+  KernelRwfT* {.importc: "__kernel_rwf_t", header: "<linux/fs.h>".} = int
 
-  INNER_C_UNION_io_uring_0* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    off* {.importc: "off".}: uint64
-    ##  offset into file
-    addr2* {.importc: "addr2".}: uint64
-    ano_io_uring_2* {.importc: "ano_io_uring_2".}: INNER_C_STRUCT_io_uring_1
+  INNER_C_STRUCT_io_uring_1* {.importc: "no_name", header: "liburing/io_uring.h", bycopy.} = object ##
+                                                                                   ##
+                                                                                   ## IO
+                                                                                   ## submission
+                                                                                   ## data
+                                                                                   ## structure
+                                                                                   ## (Submission
+                                                                                   ## Queue
+                                                                                   ## Entry)
+                                                                                   ##
+    cmdOp* {.importc: "cmd_op".}: U32
+    pad1* {.importc: "__pad1".}: U32
 
-  INNER_C_UNION_io_uring_4* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    `addr`* {.importc: "addr".}: uint64
-    ##  pointer to buffer or iovecs
-    splice_off_in* {.importc: "splice_off_in".}: uint64
-  
-  KernelRwf* {.importc: "__kernel_rwf_t", header: "<linux/fs.h>".} = int
+  INNER_C_UNION_io_uring_0* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    off* {.importc: "off".}: U64 ##  offset into file
+    addr2* {.importc: "addr2".}: U64
+    anoIoUring2* {.importc: "ano_io_uring_2".}: INNER_C_STRUCT_io_uring_1
 
-  INNER_C_UNION_io_uring_6* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    rw_flags* {.importc: "rw_flags".}: KernelRwf
-    fsync_flags* {.importc: "fsync_flags".}: uint32
-    poll_events* {.importc: "poll_events".}: uint16
-    ##  compatibility
-    poll32_events* {.importc: "poll32_events".}: uint32
-    ##  word-reversed for BE
-    sync_range_flags* {.importc: "sync_range_flags".}: uint32
-    msg_flags* {.importc: "msg_flags".}: uint32
-    timeout_flags* {.importc: "timeout_flags".}: uint32
-    accept_flags* {.importc: "accept_flags".}: uint32
-    cancel_flags* {.importc: "cancel_flags".}: uint32
-    open_flags* {.importc: "open_flags".}: uint32
-    statx_flags* {.importc: "statx_flags".}: uint32
-    fadvise_advice* {.importc: "fadvise_advice".}: uint32
-    splice_flags* {.importc: "splice_flags".}: uint32
-    rename_flags* {.importc: "rename_flags".}: uint32
-    unlink_flags* {.importc: "unlink_flags".}: uint32
-    hardlink_flags* {.importc: "hardlink_flags".}: uint32
-    xattr_flags* {.importc: "xattr_flags".}: uint32
-    msg_ring_flags* {.importc: "msg_ring_flags".}: uint32
-    uring_cmd_flags* {.importc: "uring_cmd_flags".}: uint32
+  INNER_C_UNION_io_uring_4* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    `addr`* {.importc: "addr".}: U64 ##  pointer to buffer or iovecs
+    spliceOffIn* {.importc: "splice_off_in".}: U64
 
-  INNER_C_UNION_io_uring_8* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    ##  index into fixed buffers, if used
-    buf_index* {.importc: "buf_index".}: uint16
-    ##  for grouped buffer selection
-    buf_group* {.importc: "buf_group".}: uint16
+  INNER_C_UNION_io_uring_6* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    rwFlags* {.importc: "rw_flags".}: KernelRwfT
+    fsyncFlags* {.importc: "fsync_flags".}: U32
+    pollEvents* {.importc: "poll_events".}: U16 ##  compatibility
+    poll32Events* {.importc: "poll32_events".}: U32 ##  word-reversed for BE
+    syncRangeFlags* {.importc: "sync_range_flags".}: U32
+    msgFlags* {.importc: "msg_flags".}: U32
+    timeoutFlags* {.importc: "timeout_flags".}: U32
+    acceptFlags* {.importc: "accept_flags".}: U32
+    cancelFlags* {.importc: "cancel_flags".}: U32
+    openFlags* {.importc: "open_flags".}: U32
+    statxFlags* {.importc: "statx_flags".}: U32
+    fadviseAdvice* {.importc: "fadvise_advice".}: U32
+    spliceFlags* {.importc: "splice_flags".}: U32
+    renameFlags* {.importc: "rename_flags".}: U32
+    unlinkFlags* {.importc: "unlink_flags".}: U32
+    hardlinkFlags* {.importc: "hardlink_flags".}: U32
+    xattrFlags* {.importc: "xattr_flags".}: U32
+    msgRingFlags* {.importc: "msg_ring_flags".}: U32
+    uringCmdFlags* {.importc: "uring_cmd_flags".}: U32
 
-  INNER_C_STRUCT_io_uring_11* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy.} = object
-    addr_len* {.importc: "addr_len".}: uint16
-    pad3* {.importc: "__pad3".}: array[1, uint16]
+  INNER_C_UNION_io_uring_8* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    bufIndex* {.importc: "buf_index".}: U16 ##  index into fixed buffers, if used
+    bufGroup* {.importc: "buf_group".}: U16 ##  for grouped buffer selection
 
-  INNER_C_UNION_io_uring_10* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    splice_fd_in* {.importc: "splice_fd_in".}: int32
-    file_index* {.importc: "file_index".}: uint32
-    ano_io_uring_12* {.importc: "ano_io_uring_12".}: INNER_C_STRUCT_io_uring_11
+  INNER_C_STRUCT_io_uring_11* {.importc: "no_name", header: "liburing/io_uring.h", bycopy.} = object
+    addrLen* {.importc: "addr_len".}: U16
+    pad3* {.importc: "__pad3".}: array[1, U16]
 
-  INNER_C_STRUCT_io_uring_15* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy.} = object
-    addr3* {.importc: "addr3".}: uint64
-    pad2* {.importc: "__pad2".}: array[1, uint64]
+  INNER_C_UNION_io_uring_10* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    spliceFdIn* {.importc: "splice_fd_in".}: S32
+    fileIndex* {.importc: "file_index".}: U32
+    anoIoUring12* {.importc: "ano_io_uring_12".}: INNER_C_STRUCT_io_uring_11
 
-  INNER_C_UNION_io_uring_14* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    ano_io_uring_16* {.importc: "ano_io_uring_16".}: INNER_C_STRUCT_io_uring_15
-    cmd* {.importc: "cmd".}: UncheckedArray[uint8]
+  INNER_C_STRUCT_io_uring_15* {.importc: "no_name", header: "liburing/io_uring.h", bycopy.} = object
+    addr3* {.importc: "addr3".}: U64
+    pad2* {.importc: "__pad2".}: array[1, U64]
 
-  io_uring_sqe* {.importc: "struct io_uring_sqe", header: "<linux/io_uring.h>", bycopy.} = object
-    opcode* {.importc: "opcode".}: uint8
-    ##  type of operation for this sqe
-    flags* {.importc: "flags".}: uint8
-    ##  IOSQE_ flags
-    ioprio* {.importc: "ioprio".}: uint16
-    ##  ioprio for the request
-    fd* {.importc: "fd".}: int32
-    ##  file descriptor to do IO on
-    ano_io_uring_3* {.importc: "ano_io_uring_3".}: INNER_C_UNION_io_uring_0
-    ano_io_uring_5* {.importc: "ano_io_uring_5".}: INNER_C_UNION_io_uring_4
-    len* {.importc: "len".}: uint32
-    ##  buffer size or number of iovecs
-    ano_io_uring_7* {.importc: "ano_io_uring_7".}: INNER_C_UNION_io_uring_6
-    user_data* {.importc: "user_data".}: uint64
-    ##  data to be passed back at completion time
-    ##  pack this to avoid bogus arm OABI complaints
-    ano_io_uring_9* {.importc: "ano_io_uring_9".}: INNER_C_UNION_io_uring_8
-    personality* {.importc: "personality".}: uint16
-    ano_io_uring_13* {.importc: "ano_io_uring_13".}: INNER_C_UNION_io_uring_10
-    ano_io_uring_17* {.importc: "ano_io_uring_17".}: INNER_C_UNION_io_uring_14
+  INNER_C_UNION_io_uring_14* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    anoIoUring16* {.importc: "ano_io_uring_16".}: INNER_C_STRUCT_io_uring_15
+    cmd* {.importc: "cmd".}: UncheckedArray[U8]
+
+  IoUringSqe* {.importc: "struct io_uring_sqe", header: "liburing/io_uring.h", bycopy.} = object
+    opcode* {.importc: "opcode".}: U8 ##  type of operation for this sqe
+    flags* {.importc: "flags".}: U8 ##  IOSQE_ flags
+    ioprio* {.importc: "ioprio".}: U16 ##  ioprio for the request
+    fd* {.importc: "fd".}: S32   ##  file descriptor to do IO on
+    anoIoUring3* {.importc: "ano_io_uring_3".}: INNER_C_UNION_io_uring_0
+    anoIoUring5* {.importc: "ano_io_uring_5".}: INNER_C_UNION_io_uring_4
+    len* {.importc: "len".}: U32 ##  buffer size or number of iovecs
+    anoIoUring7* {.importc: "ano_io_uring_7".}: INNER_C_UNION_io_uring_6
+    userData* {.importc: "user_data".}: U64 ##  data to be passed back at completion time
+    anoIoUring9* {.importc: "ano_io_uring_9".}: INNER_C_UNION_io_uring_8 ##  pack this to avoid bogus arm OABI complaints
+    personality* {.importc: "personality".}: U16
+    anoIoUring13* {.importc: "ano_io_uring_13".}: INNER_C_UNION_io_uring_10
+    anoIoUring17* {.importc: "ano_io_uring_17".}: INNER_C_UNION_io_uring_14
 
 
 ##
@@ -115,9 +105,8 @@ type
 ##  if the space is full.
 ##
 
-const
-  IORING_FILE_INDEX_ALLOC* = (not 0'u)
-
+var IORING_FILE_INDEX_ALLOC* {.importc: "IORING_FILE_INDEX_ALLOC",
+                             header: "liburing/io_uring.h".}: int
 const
   IOSQE_FIXED_FILE_BIT* = 0
   IOSQE_IO_DRAIN_BIT* = 1
@@ -132,53 +121,31 @@ const
 ##
 ##  use fixed fileset
 
-const
-  IOSQE_FIXED_FILE* = (1'u shl IOSQE_FIXED_FILE_BIT)
-
+var IOSQE_FIXED_FILE* {.importc: "IOSQE_FIXED_FILE", header: "liburing/io_uring.h".}: int
 ##  issue after inflight IO
 
-const
-  IOSQE_IO_DRAIN* = (1'u shl IOSQE_IO_DRAIN_BIT)
-
+var IOSQE_IO_DRAIN* {.importc: "IOSQE_IO_DRAIN", header: "liburing/io_uring.h".}: int
 ##  links next sqe
 
-const
-  IOSQE_IO_LINK* = (1'u shl IOSQE_IO_LINK_BIT)
-
+var IOSQE_IO_LINK* {.importc: "IOSQE_IO_LINK", header: "liburing/io_uring.h".}: int
 ##  like LINK, but stronger
 
-const
-  IOSQE_IO_HARDLINK* = (1'u shl IOSQE_IO_HARDLINK_BIT)
-
+var IOSQE_IO_HARDLINK* {.importc: "IOSQE_IO_HARDLINK", header: "liburing/io_uring.h".}: int
 ##  always go async
 
-const
-  IOSQE_ASYNC* = (1'u shl IOSQE_ASYNC_BIT)
-
+var IOSQE_ASYNC* {.importc: "IOSQE_ASYNC", header: "liburing/io_uring.h".}: int
 ##  select buffer from sqe->buf_group
 
-const
-  IOSQE_BUFFER_SELECT* = (1'u shl IOSQE_BUFFER_SELECT_BIT)
-
+var IOSQE_BUFFER_SELECT* {.importc: "IOSQE_BUFFER_SELECT", header: "liburing/io_uring.h".}: int
 ##  don't post CQE if request succeeded
 
-const
-  IOSQE_CQE_SKIP_SUCCESS* = (1'u shl IOSQE_CQE_SKIP_SUCCESS_BIT)
-
+var IOSQE_CQE_SKIP_SUCCESS* {.importc: "IOSQE_CQE_SKIP_SUCCESS",
+                            header: "liburing/io_uring.h".}: int
 ##
 ##  io_uring_setup() flags
 ##
 
-const
-  IORING_SETUP_IOPOLL* = (1'u shl 0) ##  io_context is polled
-  IORING_SETUP_SQPOLL* = (1'u shl 1) ##  SQ poll thread
-  IORING_SETUP_SQ_AFF* = (1'u shl 2) ##  sq_thread_cpu is valid
-  IORING_SETUP_CQSIZE* = (1'u shl 3) ##  app defines CQ size
-  IORING_SETUP_CLAMP* = (1'u shl 4) ##  clamp SQ/CQ ring sizes
-  IORING_SETUP_ATTACH_WQ* = (1'u shl 5) ##  attach to existing wq
-  IORING_SETUP_R_DISABLED* = (1'u shl 6) ##  start with ring disabled
-  IORING_SETUP_SUBMIT_ALL* = (1'u shl 7) ##  continue submit on error
-
+var IORING_SETUP_IOPOLL* {.importc: "IORING_SETUP_IOPOLL", header: "liburing/io_uring.h".}: int
 ##
 ##  Cooperative task running. When requests complete, they often require
 ##  forcing the submitter to transition to the kernel to complete. If this
@@ -187,38 +154,32 @@ const
 ##  a task running in userspace, and saves an IPI.
 ##
 
-const
-  IORING_SETUP_COOP_TASKRUN* = (1'u shl 8)
-
+var IORING_SETUP_COOP_TASKRUN* {.importc: "IORING_SETUP_COOP_TASKRUN",
+                               header: "liburing/io_uring.h".}: int
 ##
 ##  If COOP_TASKRUN is set, get notified if task work is available for
 ##  running and a kernel transition would be needed to run it. This sets
 ##  IORING_SQ_TASKRUN in the sq ring flags. Not valid with COOP_TASKRUN.
 ##
 
-const
-  IORING_SETUP_TASKRUN_FLAG* = (1'u shl 9)
-  IORING_SETUP_SQE128* = (1'u shl 10) ##  SQEs are 128 byte
-  IORING_SETUP_CQE32* = (1'u shl 11) ##  CQEs are 32 byte
-
+var IORING_SETUP_TASKRUN_FLAG* {.importc: "IORING_SETUP_TASKRUN_FLAG",
+                               header: "liburing/io_uring.h".}: int
 ##
 ##  Only one task is allowed to submit requests
 ##
 
-const
-  IORING_SETUP_SINGLE_ISSUER* = (1'u shl 12)
-
+var IORING_SETUP_SINGLE_ISSUER* {.importc: "IORING_SETUP_SINGLE_ISSUER",
+                                header: "liburing/io_uring.h".}: int
 ##
 ##  Defer running task work to get events.
 ##  Rather than running bits of task work whenever the task transitions
 ##  try to do it just before it is needed.
 ##
 
-const
-  IORING_SETUP_DEFER_TASKRUN* = (1'u shl 13)
-
+var IORING_SETUP_DEFER_TASKRUN* {.importc: "IORING_SETUP_DEFER_TASKRUN",
+                                header: "liburing/io_uring.h".}: int
 type
-  io_uring_op* {.size: sizeof(uint32).} = enum
+  IoUringOp* {.size: sizeof(cint).} = enum
     IORING_OP_NOP, IORING_OP_READV, IORING_OP_WRITEV, IORING_OP_FSYNC,
     IORING_OP_READ_FIXED, IORING_OP_WRITE_FIXED, IORING_OP_POLL_ADD,
     IORING_OP_POLL_REMOVE, IORING_OP_SYNC_FILE_RANGE, IORING_OP_SENDMSG,
@@ -242,40 +203,24 @@ type
 ## 				along with setting sqe->buf_index.
 ##
 
-const
-  IORING_URING_CMD_FIXED* = (1'u shl 0)
-
+var IORING_URING_CMD_FIXED* {.importc: "IORING_URING_CMD_FIXED",
+                            header: "liburing/io_uring.h".}: int
 ##
 ##  sqe->fsync_flags
 ##
 
-const
-  IORING_FSYNC_DATASYNC* = (1'u shl 0)
-
+var IORING_FSYNC_DATASYNC* {.importc: "IORING_FSYNC_DATASYNC", header: "liburing/io_uring.h".}: int
 ##
 ##  sqe->timeout_flags
 ##
 
-const
-  IORING_TIMEOUT_ABS* = (1'u shl 0)
-  IORING_TIMEOUT_UPDATE* = (1'u shl 1)
-  IORING_TIMEOUT_BOOTTIME* = (1'u shl 2)
-  IORING_TIMEOUT_REALTIME* = (1'u shl 3)
-  IORING_LINK_TIMEOUT_UPDATE* = (1'u shl 4)
-  IORING_TIMEOUT_ETIME_SUCCESS* = (1'u shl 5)
-  IORING_TIMEOUT_CLOCK_MASK* = (IORING_TIMEOUT_BOOTTIME or
-      IORING_TIMEOUT_REALTIME)
-  IORING_TIMEOUT_UPDATE_MASK* = (
-    IORING_TIMEOUT_UPDATE or IORING_LINK_TIMEOUT_UPDATE)
-
+var IORING_TIMEOUT_ABS* {.importc: "IORING_TIMEOUT_ABS", header: "liburing/io_uring.h".}: int
 ##
 ##  sqe->splice_flags
 ##  extends splice(2) flags
 ##
 
-const
-  SPLICE_F_FD_IN_FIXED* = (1'u shl 31) ##  the last bit of uint32
-
+var SPLICE_F_FD_IN_FIXED* {.importc: "SPLICE_F_FD_IN_FIXED", header: "liburing/io_uring.h".}: int
 ##
 ##  POLL_ADD flags. Note that since sqe->poll_events is the flag space, the
 ##  command flags for POLL_ADD are stored in sqe->len.
@@ -290,12 +235,7 @@ const
 ##  IORING_POLL_LEVEL		Level triggered poll.
 ##
 
-const
-  IORING_POLL_ADD_MULTI* = (1'u shl 0)
-  IORING_POLL_UPDATE_EVENTS* = (1'u shl 1)
-  IORING_POLL_UPDATE_USER_DATA* = (1'u shl 2)
-  IORING_POLL_ADD_LEVEL* = (1'u shl 3)
-
+var IORING_POLL_ADD_MULTI* {.importc: "IORING_POLL_ADD_MULTI", header: "liburing/io_uring.h".}: int
 ##
 ##  ASYNC_CANCEL flags.
 ##
@@ -306,12 +246,8 @@ const
 ##  IORING_ASYNC_CANCEL_FD_FIXED	'fd' passed in is a fixed descriptor
 ##
 
-const
-  IORING_ASYNC_CANCEL_ALL* = (1'u shl 0)
-  IORING_ASYNC_CANCEL_FD* = (1'u shl 1)
-  IORING_ASYNC_CANCEL_ANY* = (1'u shl 2)
-  IORING_ASYNC_CANCEL_FD_FIXED* = (1'u shl 3)
-
+var IORING_ASYNC_CANCEL_ALL* {.importc: "IORING_ASYNC_CANCEL_ALL",
+                             header: "liburing/io_uring.h".}: int
 ##
 ##  send/sendmsg and recv/recvmsg flags (sqe->ioprio)
 ##
@@ -336,12 +272,8 @@ const
 ## 				(at least partially).
 ##
 
-const
-  IORING_RECVSEND_POLL_FIRST* = (1'u shl 0)
-  IORING_RECV_MULTISHOT* = (1'u shl 1)
-  IORING_RECVSEND_FIXED_BUF* = (1'u shl 2)
-  IORING_SEND_ZC_REPORT_USAGE* = (1'u shl 3)
-
+var IORING_RECVSEND_POLL_FIRST* {.importc: "IORING_RECVSEND_POLL_FIRST",
+                                header: "liburing/io_uring.h".}: int
 ##
 ##  cqe.res for IORING_CQE_F_NOTIF if
 ##  IORING_SEND_ZC_REPORT_USAGE was requested
@@ -350,22 +282,18 @@ const
 ##  bits of cqe.res should be treated as reserved!
 ##
 
-const
-  IORING_NOTIF_USAGE_ZC_COPIED* = (1'u shl 31)
-
+var IORING_NOTIF_USAGE_ZC_COPIED* {.importc: "IORING_NOTIF_USAGE_ZC_COPIED",
+                                  header: "liburing/io_uring.h".}: int
 ##
 ##  accept flags stored in sqe->ioprio
 ##
 
+var IORING_ACCEPT_MULTISHOT* {.importc: "IORING_ACCEPT_MULTISHOT",
+                             header: "liburing/io_uring.h".}: int
 const
-  IORING_ACCEPT_MULTISHOT* = (1'u shl 0)
-
-##
-##  IORING_OP_MSG_RING command types, stored in sqe->addr
-##
-
-const
-  IORING_MSG_DATA* = 0          ##  pass sqe->len as 'res' and off as user_data
+  IORING_MSG_DATA* = 0 ##
+                    ##  IORING_OP_MSG_RING command types, stored in sqe->addr
+                    ##
   IORING_MSG_SEND_FD* = 1       ##  send a registered fd to another ring
 
 ##
@@ -375,30 +303,26 @@ const
 ## 				applicable for IORING_MSG_DATA, obviously.
 ##
 
-const
-  IORING_MSG_RING_CQE_SKIP* = (1'u shl 0)
-
+var IORING_MSG_RING_CQE_SKIP* {.importc: "IORING_MSG_RING_CQE_SKIP",
+                              header: "liburing/io_uring.h".}: int
 ##  Pass through the flags from sqe->file_index to cqe->flags
 
-const
-  IORING_MSG_RING_FLAGS_PASS* = (1'u shl 1)
-
-##
-##  IO completion data structure (Completion Queue Entry)
-##
-
+var IORING_MSG_RING_FLAGS_PASS* {.importc: "IORING_MSG_RING_FLAGS_PASS",
+                                header: "liburing/io_uring.h".}: int
 type
-  io_uring_cqe* {.importc: "struct io_uring_cqe", header: "<linux/io_uring.h>", bycopy.} = object
-    user_data* {.importc: "user_data".}: uint64
-    ##  sqe->data submission passed back
-    res* {.importc: "res".}: int32
-    ##  result code for this event
-    flags* {.importc: "flags".}: uint32
-    ##
-    ##  If the ring is initialized with IORING_SETUP_CQE32, then this field
-    ##  contains 16-bytes of padding, doubling the size of the CQE.
-    ##
-    big_cqe* {.importc: "big_cqe".}: UncheckedArray[uint64]
+  IoUringCqe* {.importc: "struct io_uring_cqe", header: "liburing/io_uring.h", bycopy.} = object ##
+                                                                         ##  IO
+                                                                         ## completion data
+                                                                         ## structure
+                                                                         ## (Completion Queue Entry)
+                                                                         ##
+    userData* {.importc: "user_data".}: U64 ##  sqe->data submission passed back
+    res* {.importc: "res".}: S32 ##  result code for this event
+    flags* {.importc: "flags".}: U32
+    bigCqe* {.importc: "big_cqe".}: ref U64 ##
+                                       ##  If the ring is initialized with IORING_SETUP_CQE32, then this field
+                                       ##  contains 16-bytes of padding, doubling the size of the CQE.
+                                       ##
 
 
 ##
@@ -411,12 +335,7 @@ type
 ##  			them from sends.
 ##
 
-const
-  IORING_CQE_F_BUFFER* = (1'u shl 0)
-  IORING_CQE_F_MORE* = (1'u shl 1)
-  IORING_CQE_F_SOCK_NONEMPTY* = (1'u shl 2)
-  IORING_CQE_F_NOTIF* = (1'u shl 3)
-
+var IORING_CQE_F_BUFFER* {.importc: "IORING_CQE_F_BUFFER", header: "liburing/io_uring.h".}: int
 const
   IORING_CQE_BUFFER_SHIFT* = 16
 
@@ -424,46 +343,44 @@ const
 ##  Magic offsets for the application to mmap the data it needs
 ##
 
-const
-  IORING_OFF_SQ_RING* = 0'u64
-  IORING_OFF_CQ_RING* = 0x8000000
-  IORING_OFF_SQES* = 0x10000000
-
-##
-##  Filled with the offset for mmap(2)
-##
-
+var IORING_OFF_SQ_RING* {.importc: "IORING_OFF_SQ_RING", header: "liburing/io_uring.h".}: int
 type
-  io_sqring_offsets* {.importc: "struct io_sqring_offsets", header: "<linux/io_uring.h>", bycopy.} = object
-    head* {.importc: "head".}: uint32
-    tail* {.importc: "tail".}: uint32
-    ring_mask* {.importc: "ring_mask".}: uint32
-    ring_entries* {.importc: "ring_entries".}: uint32
-    flags* {.importc: "flags".}: uint32
-    dropped* {.importc: "dropped".}: uint32
-    array* {.importc: "array".}: uint32
-    resv1* {.importc: "resv1".}: uint32
-    resv2* {.importc: "resv2".}: uint64
+  IoSqringOffsets* {.importc: "struct io_sqring_offsets", header: "liburing/io_uring.h", bycopy.} = object ##
+                                                                                   ##
+                                                                                   ## Filled
+                                                                                   ## with
+                                                                                   ## the
+                                                                                   ## offset
+                                                                                   ## for
+                                                                                   ## mmap(2)
+                                                                                   ##
+    head* {.importc: "head".}: U32
+    tail* {.importc: "tail".}: U32
+    ringMask* {.importc: "ring_mask".}: U32
+    ringEntries* {.importc: "ring_entries".}: U32
+    flags* {.importc: "flags".}: U32
+    dropped* {.importc: "dropped".}: U32
+    array* {.importc: "array".}: U32
+    resv1* {.importc: "resv1".}: U32
+    resv2* {.importc: "resv2".}: U64
 
 
 ##
 ##  sq_ring->flags
 ##
 
-const
-  IORING_SQ_NEED_WAKEUP* = (1'u shl 0) ##  needs io_uring_enter wakeup
-  IORING_SQ_CQ_OVERFLOW* = (1'u shl 1) ##  CQ ring is overflown
-  IORING_SQ_TASKRUN* = (1'u shl 2) ##  task should enter the kernel
-
+var IORING_SQ_NEED_WAKEUP* {.importc: "IORING_SQ_NEED_WAKEUP", header: "liburing/io_uring.h".}: int
 type
-  io_cqring_offsets* {.importc: "struct io_cqring_offsets", header: "<linux/io_uring.h>", bycopy.} = object
-    head* {.importc: "head".}: uint32
-    tail* {.importc: "tail".}: uint32
-    ring_mask* {.importc: "ring_mask".}: uint32
-    ring_entries* {.importc: "ring_entries".}: uint32
-    overflow* {.importc: "overflow".}: uint32
-    cqes* {.importc: "cqes".}: uint32
-    resv* {.importc: "resv".}: array[2, uint64]
+  IoCqringOffsets* {.importc: "struct io_cqring_offsets", header: "liburing/io_uring.h", bycopy.} = object
+    head* {.importc: "head".}: U32
+    tail* {.importc: "tail".}: U32
+    ringMask* {.importc: "ring_mask".}: U32
+    ringEntries* {.importc: "ring_entries".}: U32
+    overflow* {.importc: "overflow".}: U32
+    cqes* {.importc: "cqes".}: U32
+    flags* {.importc: "flags".}: U32
+    resv1* {.importc: "resv1".}: U32
+    resv2* {.importc: "resv2".}: U64
 
 
 ##
@@ -471,64 +388,51 @@ type
 ##
 ##  disable eventfd notifications
 
-const
-  IORING_CQ_EVENTFD_DISABLED* = (1'u shl 0)
-
+var IORING_CQ_EVENTFD_DISABLED* {.importc: "IORING_CQ_EVENTFD_DISABLED",
+                                header: "liburing/io_uring.h".}: int
 ##
 ##  io_uring_enter(2) flags
 ##
 
-const
-  IORING_ENTER_GETEVENTS* = (1'u shl 0)
-  IORING_ENTER_SQ_WAKEUP* = (1'u shl 1)
-  IORING_ENTER_SQ_WAIT* = (1'u shl 2)
-  IORING_ENTER_EXT_ARG* = (1'u shl 3)
-  IORING_ENTER_REGISTERED_RING* = (1'u shl 4)
-
-##
-##  Passed in for io_uring_setup(2). Copied back with updated info on success
-##
-
+var IORING_ENTER_GETEVENTS* {.importc: "IORING_ENTER_GETEVENTS",
+                            header: "liburing/io_uring.h".}: int
 type
-  io_uring_params* {.importc: "struct io_uring_params", header: "<linux/io_uring.h>", bycopy.} = object
-    sq_entries* {.importc: "sq_entries".}: uint32
-    cq_entries* {.importc: "cq_entries".}: uint32
-    flags* {.importc: "flags".}: uint32
-    sq_thread_cpu* {.importc: "sq_thread_cpu".}: uint32
-    sq_thread_idle* {.importc: "sq_thread_idle".}: uint32
-    features* {.importc: "features".}: uint32
-    wq_fd* {.importc: "wq_fd".}: uint32
-    resv* {.importc: "resv".}: array[3, uint32]
-    sq_off* {.importc: "sq_off".}: io_sqring_offsets
-    cq_off* {.importc: "cq_off".}: io_cqring_offsets
+  IoUringParams* {.importc: "struct io_uring_params", header: "liburing/io_uring.h", bycopy.} = object ##
+                                                                               ##
+                                                                               ## Passed
+                                                                               ## in
+                                                                               ## for
+                                                                               ## io_uring_setup(2).
+                                                                               ## Copied
+                                                                               ## back
+                                                                               ## with
+                                                                               ## updated
+                                                                               ## info
+                                                                               ## on
+                                                                               ## success
+                                                                               ##
+    sqEntries* {.importc: "sq_entries".}: U32
+    cqEntries* {.importc: "cq_entries".}: U32
+    flags* {.importc: "flags".}: U32
+    sqThreadCpu* {.importc: "sq_thread_cpu".}: U32
+    sqThreadIdle* {.importc: "sq_thread_idle".}: U32
+    features* {.importc: "features".}: U32
+    wqFd* {.importc: "wq_fd".}: U32
+    resv* {.importc: "resv".}: array[3, U32]
+    sqOff* {.importc: "sq_off".}: IoSqringOffsets
+    cqOff* {.importc: "cq_off".}: IoCqringOffsets
 
 
 ##
 ##  io_uring_params->features flags
 ##
 
+var IORING_FEAT_SINGLE_MMAP* {.importc: "IORING_FEAT_SINGLE_MMAP",
+                             header: "liburing/io_uring.h".}: int
 const
-  IORING_FEAT_SINGLE_MMAP* = (1'u shl 0)
-  IORING_FEAT_NODROP* = (1'u shl 1)
-  IORING_FEAT_SUBMIT_STABLE* = (1'u shl 2)
-  IORING_FEAT_RW_CUR_POS* = (1'u shl 3)
-  IORING_FEAT_CUR_PERSONALITY* = (1'u shl 4)
-  IORING_FEAT_FAST_POLL* = (1'u shl 5)
-  IORING_FEAT_POLL_32BITS* = (1'u shl 6)
-  IORING_FEAT_SQPOLL_NONFIXED* = (1'u shl 7)
-  IORING_FEAT_EXT_ARG* = (1'u shl 8)
-  IORING_FEAT_NATIVE_WORKERS* = (1'u shl 9)
-  IORING_FEAT_RSRC_TAGS* = (1'u shl 10)
-  IORING_FEAT_CQE_SKIP* = (1'u shl 11)
-  IORING_FEAT_LINKED_FILE* = (1'u shl 12)
-  IORING_FEAT_REG_REG_RING* = (1'u shl 13)
-
-##
-##  io_uring_register(2) opcodes and arguments
-##
-
-const
-  IORING_REGISTER_BUFFERS* = 0
+  IORING_REGISTER_BUFFERS* = 0  ##
+                            ##  io_uring_register(2) opcodes and arguments
+                            ##
   IORING_UNREGISTER_BUFFERS* = 1
   IORING_REGISTER_FILES* = 2
   IORING_UNREGISTER_FILES* = 3
@@ -557,20 +461,16 @@ const
   IORING_REGISTER_LAST* = 26    ##  flag added to the opcode to use a registered ring fd
   IORING_REGISTER_USE_REGISTERED_RING* = 1'u shl 31
 
-##  io-wq worker categories
-
 const
-  IO_WQ_BOUND* = 0
+  IO_WQ_BOUND* = 0              ##  io-wq worker categories
   IO_WQ_UNBOUND* = 1
 
-##  deprecated, see struct io_uring_rsrc_update
-
 type
-  io_uring_files_update* {.importc: "struct io_uring_files_update", header: "<linux/io_uring.h>",
-                          bycopy.} = object
-    offset* {.importc: "offset".}: uint32
-    resv* {.importc: "resv".}: uint32
-    fds* {.importc: "fds", align: 64.}: int ##  int32 *
+  IoUringFilesUpdate* {.importc: "struct io_uring_files_update", header: "liburing/io_uring.h",
+                       bycopy.} = object ##  deprecated, see struct io_uring_rsrc_update
+    offset* {.importc: "offset".}: U32
+    resv* {.importc: "resv".}: U32
+    fds* {.importc: "fds", align: 64.}: U64 ##  __s32 *
 
 
 ##
@@ -578,189 +478,175 @@ type
 ##  -1 file descriptors.
 ##
 
-const
-  IORING_RSRC_REGISTER_SPARSE* = (1'u shl 0)
-
+var IORING_RSRC_REGISTER_SPARSE* {.importc: "IORING_RSRC_REGISTER_SPARSE",
+                                 header: "liburing/io_uring.h".}: int
 type
-  io_uring_rsrc_register* {.importc: "struct io_uring_rsrc_register",
-                           header: "<linux/io_uring.h>", bycopy.} = object
-    nr* {.importc: "nr".}: uint32
-    flags* {.importc: "flags".}: uint32
-    resv2* {.importc: "resv2".}: uint64
-    data* {.importc: "data", align: 64.}: int
-    tags* {.importc: "tags", align: 64.}: int
+  IoUringRsrcRegister* {.importc: "struct io_uring_rsrc_register", header: "liburing/io_uring.h",
+                        bycopy.} = object
+    nr* {.importc: "nr".}: U32
+    flags* {.importc: "flags".}: U32
+    resv2* {.importc: "resv2".}: U64
+    data* {.importc: "data", align: 64.}: U64
+    tags* {.importc: "tags", align: 64.}: U64
 
-  io_uring_rsrc_update* {.importc: "struct io_uring_rsrc_update", header: "<linux/io_uring.h>",
-                         bycopy.} = object
-    offset* {.importc: "offset".}: uint32
-    resv* {.importc: "resv".}: uint32
-    data* {.importc: "data", align: 64.}: int
+  IoUringRsrcUpdate* {.importc: "struct io_uring_rsrc_update", header: "liburing/io_uring.h", bycopy.} = object
+    offset* {.importc: "offset".}: U32
+    resv* {.importc: "resv".}: U32
+    data* {.importc: "data", align: 64.}: U64
 
-  io_uring_rsrc_update2* {.importc: "struct io_uring_rsrc_update2", header: "<linux/io_uring.h>",
-                          bycopy.} = object
-    offset* {.importc: "offset".}: uint32
-    resv* {.importc: "resv".}: uint32
-    data* {.importc: "data", align: 64.}: int
-    tags* {.importc: "tags", align: 64.}: int
-    nr* {.importc: "nr".}: uint32
-    resv2* {.importc: "resv2".}: uint32
+  IoUringRsrcUpdate2* {.importc: "struct io_uring_rsrc_update2", header: "liburing/io_uring.h",
+                       bycopy.} = object
+    offset* {.importc: "offset".}: U32
+    resv* {.importc: "resv".}: U32
+    data* {.importc: "data", align: 64.}: U64
+    tags* {.importc: "tags", align: 64.}: U64
+    nr* {.importc: "nr".}: U32
+    resv2* {.importc: "resv2".}: U32
 
-  io_uring_notification_slot* {.importc: "struct io_uring_notification_slot",
-                               header: "<linux/io_uring.h>", bycopy.} = object
-    tag* {.importc: "tag".}: uint64
-    resv* {.importc: "resv".}: array[3, uint64]
+  IoUringNotificationSlot* {.importc: "struct io_uring_notification_slot",
+                            header: "liburing/io_uring.h", bycopy.} = object
+    tag* {.importc: "tag".}: U64
+    resv* {.importc: "resv".}: array[3, U64]
 
-  io_uring_notification_register* {.importc: "struct io_uring_notification_register",
-                                   header: "<linux/io_uring.h>", bycopy.} = object
-    nr_slots* {.importc: "nr_slots".}: uint32
-    resv* {.importc: "resv".}: uint32
-    resv2* {.importc: "resv2".}: uint64
-    data* {.importc: "data".}: uint64
-    resv3* {.importc: "resv3".}: uint64
+  IoUringNotificationRegister* {.importc: "struct io_uring_notification_register",
+                                header: "liburing/io_uring.h", bycopy.} = object
+    nrSlots* {.importc: "nr_slots".}: U32
+    resv* {.importc: "resv".}: U32
+    resv2* {.importc: "resv2".}: U64
+    data* {.importc: "data".}: U64
+    resv3* {.importc: "resv3".}: U64
 
 
 ##  Skip updating fd indexes set to this value in the fd table
 
-const
-  IORING_REGISTER_FILES_SKIP* = (-2)
-  IO_URING_OP_SUPPORTED* = (1'u shl 0)
-
+var IORING_REGISTER_FILES_SKIP* {.importc: "IORING_REGISTER_FILES_SKIP",
+                                header: "liburing/io_uring.h".}: int
 type
-  io_uring_probe_op* {.importc: "struct io_uring_probe_op", header: "<linux/io_uring.h>", bycopy.} = object
-    op* {.importc: "op".}: uint8
-    resv* {.importc: "resv".}: uint8
-    flags* {.importc: "flags".}: uint16
-    ##  IO_URING_OP_* flags
-    resv2* {.importc: "resv2".}: uint32
+  IoUringProbeOp* {.importc: "struct io_uring_probe_op", header: "liburing/io_uring.h", bycopy.} = object
+    op* {.importc: "op".}: U8
+    resv* {.importc: "resv".}: U8
+    flags* {.importc: "flags".}: U16 ##  IO_URING_OP_* flags
+    resv2* {.importc: "resv2".}: U32
 
-  io_uring_probe* {.importc: "struct io_uring_probe", header: "<linux/io_uring.h>", bycopy.} = object
-    last_op* {.importc: "last_op".}: uint8
-    ##  last opcode supported
-    ops_len* {.importc: "ops_len".}: uint8
-    ##  length of ops[] array below
-    resv* {.importc: "resv".}: uint16
-    resv2* {.importc: "resv2".}: array[3, uint32]
-    ops* {.importc: "ops".}: UncheckedArray[io_uring_probe_op]
+  IoUringProbe* {.importc: "struct io_uring_probe", header: "liburing/io_uring.h", bycopy.} = object
+    lastOp* {.importc: "last_op".}: U8 ##  last opcode supported
+    opsLen* {.importc: "ops_len".}: U8 ##  length of ops[] array below
+    resv* {.importc: "resv".}: U16
+    resv2* {.importc: "resv2".}: array[3, U32]
+    ops* {.importc: "ops".}: ref IoUringProbeOp
 
-  INNER_C_UNION_io_uring_18* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    register_op* {.importc: "register_op".}: uint8
-    ##  IORING_RESTRICTION_REGISTER_OP
-    sqe_op* {.importc: "sqe_op".}: uint8
-    ##  IORING_RESTRICTION_SQE_OP
-    sqe_flags* {.importc: "sqe_flags".}: uint8
+  INNER_C_UNION_io_uring_18* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    registerOp* {.importc: "register_op".}: U8 ##  IORING_RESTRICTION_REGISTER_OP
+    sqeOp* {.importc: "sqe_op".}: U8 ##  IORING_RESTRICTION_SQE_OP
+    sqeFlags* {.importc: "sqe_flags".}: U8
     ##  IORING_RESTRICTION_SQE_FLAGS_*
 
-  io_uring_restriction* {.importc: "struct io_uring_restriction", header: "<linux/io_uring.h>",
-                         bycopy.} = object
-    opcode* {.importc: "opcode".}: uint16
-    ano_io_uring_19* {.importc: "ano_io_uring_19".}: INNER_C_UNION_io_uring_18
-    resv* {.importc: "resv".}: uint8
-    resv2* {.importc: "resv2".}: array[3, uint32]
+  IoUringRestriction* {.importc: "struct io_uring_restriction", header: "liburing/io_uring.h", bycopy.} = object
+    opcode* {.importc: "opcode".}: U16
+    anoIoUring19* {.importc: "ano_io_uring_19".}: INNER_C_UNION_io_uring_18
+    resv* {.importc: "resv".}: U8
+    resv2* {.importc: "resv2".}: array[3, U32]
 
-  io_uring_buf* {.importc: "struct io_uring_buf", header: "<linux/io_uring.h>", bycopy.} = object
-    `addr`* {.importc: "addr".}: uint64
-    len* {.importc: "len".}: uint32
-    bid* {.importc: "bid".}: uint16
-    resv* {.importc: "resv".}: uint16
+  IoUringBuf* {.importc: "struct io_uring_buf", header: "liburing/io_uring.h", bycopy.} = object
+    `addr`* {.importc: "addr".}: U64
+    len* {.importc: "len".}: U32
+    bid* {.importc: "bid".}: U16
+    resv* {.importc: "resv".}: U16
 
-  INNER_C_STRUCT_io_uring_21* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy.} = object
-    resv1* {.importc: "resv1".}: uint64
-    resv2* {.importc: "resv2".}: uint32
-    resv3* {.importc: "resv3".}: uint16
-    tail* {.importc: "tail".}: uint16
+  INNER_C_STRUCT_io_uring_21* {.importc: "no_name", header: "liburing/io_uring.h", bycopy.} = object
+    resv1* {.importc: "resv1".}: U64
+    resv2* {.importc: "resv2".}: U32
+    resv3* {.importc: "resv3".}: U16
+    tail* {.importc: "tail".}: U16
 
-  INNER_C_STRUCT_io_uring_23* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy.} = object
-    bufs* {.importc: "bufs".}: UncheckedArray[io_uring_buf]
+  INNER_C_UNION_io_uring_20* {.importc: "no_name", header: "liburing/io_uring.h", bycopy, union.} = object
+    anoIoUring22* {.importc: "ano_io_uring_22".}: INNER_C_STRUCT_io_uring_21 ##
+                                                                         ##  To avoid
+                                                                         ## spilling into more pages than we need to, the
+                                                                         ##  ring tail is
+                                                                         ## overlaid with the
+                                                                         ## io_uring_buf->resv field.
+                                                                         ##
+    bufs* {.importc: "bufs".}: UncheckedArray[IoUringBuf]
 
-  INNER_C_UNION_io_uring_20* {.importc: "no_name", header: "<linux/io_uring.h>", bycopy, union.} = object
-    ##
-    ##  To avoid spilling into more pages than we need to, the
-    ##  ring tail is overlaid with the io_uring_buf->resv field.
-    ##
-    ano_io_uring_22* {.importc: "ano_io_uring_22".}: INNER_C_STRUCT_io_uring_21
-    ano_io_uring_24* {.importc: "ano_io_uring_24".}: INNER_C_STRUCT_io_uring_23
+  IoUringBufRing* {.importc: "struct io_uring_buf_ring", header: "liburing/io_uring.h", bycopy.} = object
+    anoIoUring23* {.importc: "ano_io_uring_23".}: INNER_C_UNION_io_uring_20
 
-  io_uring_buf_ring* {.importc: "struct io_uring_buf_ring", header: "<linux/io_uring.h>", bycopy.} = object
-    ano_io_uring_25* {.importc: "ano_io_uring_25".}: INNER_C_UNION_io_uring_20
-
-
-##  argument for IORING_(UN)REGISTER_PBUF_RING
 
 type
-  io_uring_buf_reg* {.importc: "struct io_uring_buf_reg", header: "<linux/io_uring.h>", bycopy.} = object
-    ring_addr* {.importc: "ring_addr".}: uint64
-    ring_entries* {.importc: "ring_entries".}: uint32
-    bgid* {.importc: "bgid".}: uint16
-    pad* {.importc: "pad".}: uint16
-    resv* {.importc: "resv".}: array[3, uint64]
+  IoUringBufReg* {.importc: "struct io_uring_buf_reg", header: "liburing/io_uring.h", bycopy.} = object ##  argument for IORING_(UN)REGISTER_PBUF_RING
+    ringAddr* {.importc: "ring_addr".}: U64
+    ringEntries* {.importc: "ring_entries".}: U32
+    bgid* {.importc: "bgid".}: U16
+    pad* {.importc: "pad".}: U16
+    resv* {.importc: "resv".}: array[3, U64]
 
-
-##
-##  io_uring_restriction->opcode values
-##
 
 const                         ##  Allow an io_uring_register(2) opcode
-  IORING_RESTRICTION_REGISTER_OP* = 0 ##  Allow an sqe opcode
+  IORING_RESTRICTION_REGISTER_OP* = 0 ##
+                                   ##  io_uring_restriction->opcode values
+                                   ##
   IORING_RESTRICTION_SQE_OP* = 1 ##  Allow sqe flags
   IORING_RESTRICTION_SQE_FLAGS_ALLOWED* = 2 ##  Require sqe flags (these flags must be set on each submission)
   IORING_RESTRICTION_SQE_FLAGS_REQUIRED* = 3
   IORING_RESTRICTION_LAST* = 4
 
 type
-  io_uring_getevents_arg* {.importc: "struct io_uring_getevents_arg",
-                           header: "<linux/io_uring.h>", bycopy.} = object
-    sigmask* {.importc: "sigmask".}: uint64
-    sigmask_sz* {.importc: "sigmask_sz".}: uint32
-    pad* {.importc: "pad".}: uint32
-    ts* {.importc: "ts".}: uint64
+  IoUringGeteventsArg* {.importc: "struct io_uring_getevents_arg", header: "liburing/io_uring.h",
+                        bycopy.} = object
+    sigmask* {.importc: "sigmask".}: U64
+    sigmaskSz* {.importc: "sigmask_sz".}: U32
+    pad* {.importc: "pad".}: U32
+    ts* {.importc: "ts".}: U64
 
-
-##
-##  Argument for IORING_REGISTER_SYNC_CANCEL
-##
 
 type
-  io_uring_sync_cancel_reg* {.importc: "struct io_uring_sync_cancel_reg",
-                             header: "<linux/io_uring.h>", bycopy.} = object
-    `addr`* {.importc: "addr".}: uint64
-    fd* {.importc: "fd".}: int32
-    flags* {.importc: "flags".}: uint32
-    timeout* {.importc: "timeout".}: Timespec
-    pad* {.importc: "pad".}: array[4, uint64]
+  IoUringSyncCancelReg* {.importc: "struct io_uring_sync_cancel_reg",
+                         header: "liburing/io_uring.h", bycopy.} = object ##
+                                                            ##  Argument for
+                                                            ## IORING_REGISTER_SYNC_CANCEL
+                                                            ##
+    `addr`* {.importc: "addr".}: U64
+    fd* {.importc: "fd".}: S32
+    flags* {.importc: "flags".}: U32
+    timeout* {.importc: "timeout".}: KernelTimespec
+    pad* {.importc: "pad".}: array[4, U64]
 
-
-##
-##  Argument for IORING_REGISTER_FILE_ALLOC_RANGE
-##  The range is specified as [off, off + len)
-##
 
 type
-  io_uring_file_index_range* {.importc: "struct io_uring_file_index_range",
-                              header: "<linux/io_uring.h>", bycopy.} = object
-    off* {.importc: "off".}: uint32
-    len* {.importc: "len".}: uint32
-    resv* {.importc: "resv".}: uint64
+  IoUringFileIndexRange* {.importc: "struct io_uring_file_index_range",
+                          header: "liburing/io_uring.h", bycopy.} = object ##
+                                                             ##  Argument for
+                                                             ## IORING_REGISTER_FILE_ALLOC_RANGE
+                                                             ##  The range is specified as [off, off + len)
+                                                             ##
+    off* {.importc: "off".}: U32
+    len* {.importc: "len".}: U32
+    resv* {.importc: "resv".}: U64
 
-  io_uring_recvmsg_out* {.importc: "struct io_uring_recvmsg_out", header: "<linux/io_uring.h>",
-                         bycopy.} = object
-    namelen* {.importc: "namelen".}: uint32
-    controllen* {.importc: "controllen".}: uint32
-    payloadlen* {.importc: "payloadlen".}: uint32
-    flags* {.importc: "flags".}: uint32
-
+  IoUringRecvmsgOut* {.importc: "struct io_uring_recvmsg_out", header: "liburing/io_uring.h", bycopy.} = object
+    namelen* {.importc: "namelen".}: U32
+    controllen* {.importc: "controllen".}: U32
+    payloadlen* {.importc: "payloadlen".}: U32
+    flags* {.importc: "flags".}: U32
 
 proc syscall(arg: cint): cint {.importc, header: "<unistd.h>", varargs.}
 var
   SYS_io_uring_setup {.importc, header: "<sys/syscall.h>".}: cint
   SYS_io_uring_enter {.importc, header: "<sys/syscall.h>".}: cint
+  SYS_io_uring_enter2 {.importc, header: "<sys/syscall.h>".}: cint
   SYS_io_uring_register {.importc, header: "<sys/syscall.h>".}: cint
 
-template io_uring_setup*(entries: cint, params: ptr io_uring_params): cint =
+template io_uring_setup*(entries: cint, params: ref IoUringParams): cint =
   syscall(SYS_io_uring_setup, entries, params)
 
-template io_uring_enter*(fd: cint, to_submit: cint, min_complete: cint,
-                     flags: cint, argp: pointer, argsz: cint): cint =
-  syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, argp, argsz)
+template io_uring_enter*(fd: cint, toSubmit: cint, minComplete: cint,
+                         flags: cint, sig: ref Sigset): cint =
+  syscall(SYS_io_uring_enter, fd, toSubmit, minComplete, flags, sig)
+
+template io_uring_enter2*(fd: cint, toSubmit: cint, minComplete: cint,
+                         flags: cint, sig: ref Sigset, sz: cint): cint =
+  syscall(SYS_io_uring_enter2, fd, toSubmit, minComplete, flags, sig, sz)
 
 template io_uring_register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint =
   syscall(SYS_io_uring_register, fd, op, arg, nr_args)
