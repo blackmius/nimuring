@@ -218,7 +218,7 @@ const
   IORING_SETUP_DEFER_TASKRUN* = (1'u shl 13)
 
 type
-  io_uring_op* {.size: sizeof(cint).} = enum
+  io_uring_op* {.size: sizeof(uint32).} = enum
     IORING_OP_NOP, IORING_OP_READV, IORING_OP_WRITEV, IORING_OP_FSYNC,
     IORING_OP_READ_FIXED, IORING_OP_WRITE_FIXED, IORING_OP_POLL_ADD,
     IORING_OP_POLL_REMOVE, IORING_OP_SYNC_FILE_RANGE, IORING_OP_SENDMSG,
@@ -388,7 +388,7 @@ const
 ##
 
 type
-  io_uring_cqe* {.importc: "io_uring_cqe", header: "<linux/io_uring.h>", bycopy.} = object
+  io_uring_cqe* {.importc: "struct io_uring_cqe", header: "<linux/io_uring.h>", bycopy.} = object
     user_data* {.importc: "user_data".}: uint64
     ##  sqe->data submission passed back
     res* {.importc: "res".}: int32
@@ -463,9 +463,7 @@ type
     ring_entries* {.importc: "ring_entries".}: uint32
     overflow* {.importc: "overflow".}: uint32
     cqes* {.importc: "cqes".}: uint32
-    flags* {.importc: "flags".}: uint32
-    resv1* {.importc: "resv1".}: uint32
-    resv2* {.importc: "resv2".}: uint64
+    resv* {.importc: "resv".}: array[2, uint64]
 
 
 ##
@@ -757,12 +755,12 @@ var
   SYS_io_uring_enter {.importc, header: "<sys/syscall.h>".}: cint
   SYS_io_uring_register {.importc, header: "<sys/syscall.h>".}: cint
 
-proc io_uring_setup*(entries: uint32, params: ptr io_uring_params): cint =
-  return syscall(SYS_io_uring_setup, entries, params)
+template io_uring_setup*(entries: cint, params: ptr io_uring_params): cint =
+  syscall(SYS_io_uring_setup, entries, params)
 
-proc io_uring_enter*(fd: uint32, to_submit: uint32, min_complete: uint32,
-                     flags: uint32, argp: pointer, argsz: uint32): cint =
-  return syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, argp, argsz)
+template io_uring_enter*(fd: cint, to_submit: cint, min_complete: cint,
+                     flags: cint, argp: pointer, argsz: cint): cint =
+  syscall(SYS_io_uring_enter, fd, to_submit, min_complete, flags, argp, argsz)
 
-proc io_uring_register*(fd: uint32, op: uint32, arg: pointer, nr_args: uint): cint =
-  return syscall(SYS_io_uring_register, fd, op, arg, nr_args)
+template io_uring_register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint =
+  syscall(SYS_io_uring_register, fd, op, arg, nr_args)
