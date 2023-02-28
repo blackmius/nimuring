@@ -1,4 +1,5 @@
 import os, posix
+from atomics import MemoryOrder
 import io_uring
 
 type
@@ -12,7 +13,7 @@ type
     head: ptr uint
     tail: ptr uint
     ringMask: ptr uint
-    ringEntries: ptr uint
+    ringEntries: ptr uint16
     flags: ptr SubmissionQueueFlags
     dropped: ptr uint
     arr: ptr uint
@@ -32,7 +33,7 @@ type
     head: ptr uint
     tail: ptr uint
     ringMask: ptr uint
-    ringEntries: ptr uint
+    ringEntries: ptr uint16
     flags: ptr CompletionQueueFlags
     overflow: ptr uint
     cqes: ptr io_uring_cqe
@@ -116,12 +117,12 @@ proc newRing*(queueDepth: uint, flags: SetupFlags): Ring =
   
   # Initialize the SubmissionQueue
   result.sq.head = cast[ptr uint](result.sq.ringPtr + params.sq_off.head)
-  result.sq.tail = cast[ptr uint](result.sq.ring_ptr + params.sq_off.tail)
-  result.sq.ringMask = cast[ptr uint](result.sq.ring_ptr + params.sq_off.ring_mask)
-  result.sq.ringEntries = cast[ptr uint](result.sq.ring_ptr + params.sq_off.ring_entries)
-  result.sq.flags = cast[ptr SubmissionQueueFlags](result.sq.ring_ptr + params.sq_off.flags)
-  result.sq.dropped = cast[ptr uint](result.sq.ring_ptr + params.sq_off.dropped)
-  result.sq.arr = cast[ptr uint](result.sq.ring_ptr + params.sq_off.array)
+  result.sq.tail = cast[ptr uint](result.sq.ringPtr + params.sq_off.tail)
+  result.sq.ringMask = cast[ptr uint](result.sq.ringPtr + params.sq_off.ring_mask)
+  result.sq.ringEntries = cast[ptr uint16](result.sq.ringPtr + params.sq_off.ring_entries)
+  result.sq.flags = cast[ptr SubmissionQueueFlags](result.sq.ringPtr + params.sq_off.flags)
+  result.sq.dropped = cast[ptr uint](result.sq.ringPtr + params.sq_off.dropped)
+  result.sq.arr = cast[ptr uint](result.sq.ringPtr + params.sq_off.array)
   result.sq.sqes = cast[ptr io_uring_sqe](mmap(
     cast[pointer](nil),
     int(params.sq_entries * sizeof(io_uring_sqe).uint),
@@ -138,7 +139,37 @@ proc newRing*(queueDepth: uint, flags: SetupFlags): Ring =
   result.cq.head = cast[ptr uint](result.cq.ringPtr + params.cq_off.head)
   result.cq.tail = cast[ptr uint](result.cq.ringPtr + params.cq_off.tail)
   result.cq.ringMask = cast[ptr uint](result.cq.ringPtr + params.cq_off.ring_mask)
-  result.cq.ringEntries = cast[ptr uint](result.cq.ringPtr + params.cq_off.ring_entries)
+  result.cq.ringEntries = cast[ptr uint16](result.cq.ringPtr + params.cq_off.ring_entries)
   result.cq.overflow = cast[ptr uint](result.cq.ringPtr + params.cq_off.overflow)
   result.cq.cqes = cast[ptr io_uring_cqe](result.cq.ringPtr + params.cq_off.cqes)
   
+proc `=destroy`*(ring: var Ring) =
+  if ring.sq.sqes != nil:
+    discard munmap(ring.sq.sqes, int(ring.sq.ringEntries[] * sizeof(io_uring_sqe).uint))
+  if ring.sq.ringPtr != nil:
+    discard munmap(ring.sq.ringPtr, ring.sq.ringSize)
+  if ring.ringFD != 0:
+    if close(ring.ringFD) != 0:
+      raiseOsError osLastError()
+
+{.push, header: "<stdatomic.h>", importc.}
+proc atomic_load_explicit[T, A](location: ptr A; order: MemoryOrder): T
+proc atomic_store_explicit[T, A](location: ptr A; desired: T; order: MemoryOrder = moSequentiallyConsistent)
+proc atomic_thread_fence(order: MemoryOrder)
+{.pop.}
+
+proc sqFlush*(ring: Ring): bool =
+  var
+    sq = ring.sq
+    tail = sq.tail[]
+    toSubmit = sq.sqeTail - sq.sqeHead
+  let mask = sq.ringMask[]
+  if toSubmit == 0:
+    return false
+  while toSubmit > 0:
+    cast[ptr uint](sq.arr + (tail and mask))[] = sq.sqeHead and mask
+    tail += 1
+    sq.sqeHead += 1u
+    toSubmit -= 1
+  atomic_store_explicit(sq.tail, tail, moRelease)
+  return true
