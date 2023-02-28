@@ -12,9 +12,7 @@ type
   SubmissionQueue* = object
     head: ptr uint
     tail: ptr uint
-    ringMask: ptr uint
-    ringEntries: ptr uint16
-    flags: ptr SubmissionQueueFlags
+    flags: SubmissionQueueFlags
     dropped: ptr uint
     arr: ptr uint
     sqes: ptr io_uring_sqe
@@ -22,22 +20,19 @@ type
     sqeHead: uint
     sqeTail: uint
 
+    ringMask: uint
+    ringEntries: uint16
     ringSize: int
     ringPtr: pointer
-  
-  CompletionQueueFlag* = enum
-    cqEventFDDisabled
-  CompletionQueueFlags* = set[CompletionQueueFlag]
   
   CompletionQueue* = object
     head: ptr uint
     tail: ptr uint
-    ringMask: ptr uint
-    ringEntries: ptr uint16
-    flags: ptr CompletionQueueFlags
     overflow: ptr uint
     cqes: ptr io_uring_cqe
 
+    ringMask: uint
+    ringEntries: uint16
     ringSize: int
     ringPtr: pointer
 
@@ -89,6 +84,8 @@ proc `+`[S: SomeInteger](p: pointer, offset: S): pointer =
   ## single bytes.
   return cast[pointer](cast[ByteAddress](p) +% int(offset))
 
+
+
 proc newRing*(queueDepth: uint, flags: SetupFlags): Ring =
   let params = io_uring_params(flags: cast[uint32](flags))
   result.ringFD = io_uring_setup(queueDepth.cint, params.unsafeAddr)
@@ -98,59 +95,97 @@ proc newRing*(queueDepth: uint, flags: SetupFlags): Ring =
   result.flags = cast[SetupFlags](params.flags)
   result.features = cast[Features](params.features)
 
-  result.sq.ringSize = max(
-    params.sq_off.array + params.sq_entries * sizeof(uint32).uint,
-    params.cq_off.cqes + params.cq_entries * sizeof(io_uring_cqe).uint
-  ).int
-  result.cq.ringSize = result.sq.ringSize
+  var size = sizeof(io_uring_cqe)
+  if sfCqe32 in flags:
+    size += sizeof(io_uring_cqe)
 
-  result.sq.ringPtr = mmap(
-    cast[pointer](nil), result.sq.ringSize,
+  var
+    sq = result.sq
+    cq = result.cq
+  
+  sq.ringSize = int(params.sq_off.array + params.sq_entries * sizeof(uint).uint)
+  cq.ringSize = int(params.cq_off.cqes + params.cq_entries * size.uint)
+
+  if fSingleMmap in result.features:
+    if cq.ringSize > sq.ringSize:
+      sq.ringSize = cq.ringSize
+    cq.ringSize = sq.ringSize
+  
+  sq.ringPtr = mmap(
+    cast[pointer](nil), sq.ringSize,
     cast[cint](PROT_READ or PROT_WRITE),
     cast[cint](MAP_SHARED or MAP_POPULATE),
     result.ringFD,
-    cast[Off](IORING_OFF_SQ_RING),
+    cast[Off](IORING_OFF_SQ_RING)
   )
-  result.cq.ringPtr = result.sq.ringPtr
-  if result.sq.ringPtr == MAP_FAILED:
+  if sq.ringPtr == MAP_FAILED:
     raiseOsError osLastError()
-  
+
+  if fSingleMmap in result.features:
+    cq.ringPtr = sq.ringPtr
+  else:
+    cq.ringPtr = mmap(
+      cast[pointer](nil), cq.ringSize,
+      cast[cint](PROT_READ or PROT_WRITE),
+      cast[cint](MAP_SHARED or MAP_POPULATE),
+      result.ringFD,
+      cast[Off](IORING_OFF_CQ_RING)
+    )
+    if cq.ringPtr == MAP_FAILED:
+      raiseOsError osLastError()
+
   # Initialize the SubmissionQueue
-  result.sq.head = cast[ptr uint](result.sq.ringPtr + params.sq_off.head)
-  result.sq.tail = cast[ptr uint](result.sq.ringPtr + params.sq_off.tail)
-  result.sq.ringMask = cast[ptr uint](result.sq.ringPtr + params.sq_off.ring_mask)
-  result.sq.ringEntries = cast[ptr uint16](result.sq.ringPtr + params.sq_off.ring_entries)
-  result.sq.flags = cast[ptr SubmissionQueueFlags](result.sq.ringPtr + params.sq_off.flags)
-  result.sq.dropped = cast[ptr uint](result.sq.ringPtr + params.sq_off.dropped)
-  result.sq.arr = cast[ptr uint](result.sq.ringPtr + params.sq_off.array)
-  result.sq.sqes = cast[ptr io_uring_sqe](mmap(
+  sq.head = cast[ptr uint](sq.ringPtr + params.sq_off.head)
+  sq.tail = cast[ptr uint](sq.ringPtr + params.sq_off.tail)
+  sq.ringMask = cast[ptr uint](sq.ringPtr + params.sq_off.ring_mask)[]
+  sq.ringEntries = cast[ptr uint16](sq.ringPtr + params.sq_off.ring_entries)[]
+  sq.flags = cast[ptr SubmissionQueueFlags](sq.ringPtr + params.sq_off.flags)[]
+  sq.dropped = cast[ptr uint](sq.ringPtr + params.sq_off.dropped)
+  sq.arr = cast[ptr uint](sq.ringPtr + params.sq_off.array)
+
+  size = sizeof(io_uring_sqe)
+  if sfSqe128 in flags:
+    size += 64
+  
+  sq.sqes = cast[ptr io_uring_sqe](mmap(
     cast[pointer](nil),
-    int(params.sq_entries * sizeof(io_uring_sqe).uint),
+    int(params.sq_entries * size.uint),
     cast[cint](PROT_READ or PROT_WRITE),
     cast[cint](MAP_SHARED or MAP_POPULATE),
     result.ringFD,
     cast[Off](IORING_OFF_SQES),
   ))
-  if result.sq.sqes == MAP_FAILED:
-    discard munmap(result.sq.ringPtr, result.sq.ringSize)
+  if sq.sqes == MAP_FAILED:
     raiseOsError osLastError()
   
   # Initialize the CompletionQueue
-  result.cq.head = cast[ptr uint](result.cq.ringPtr + params.cq_off.head)
-  result.cq.tail = cast[ptr uint](result.cq.ringPtr + params.cq_off.tail)
-  result.cq.ringMask = cast[ptr uint](result.cq.ringPtr + params.cq_off.ring_mask)
-  result.cq.ringEntries = cast[ptr uint16](result.cq.ringPtr + params.cq_off.ring_entries)
-  result.cq.overflow = cast[ptr uint](result.cq.ringPtr + params.cq_off.overflow)
-  result.cq.cqes = cast[ptr io_uring_cqe](result.cq.ringPtr + params.cq_off.cqes)
-  
+  cq.head = cast[ptr uint](cq.ringPtr + params.cq_off.head)
+  cq.tail = cast[ptr uint](cq.ringPtr + params.cq_off.tail)
+  cq.ringMask = cast[ptr uint](cq.ringPtr + params.cq_off.ring_mask)[]
+  cq.ringEntries = cast[ptr uint16](cq.ringPtr + params.cq_off.ring_entries)[]
+  cq.overflow = cast[ptr uint](cq.ringPtr + params.cq_off.overflow)
+  cq.cqes = cast[ptr io_uring_cqe](cq.ringPtr + params.cq_off.cqes)
+
+  # Directly map SQ slots to SQEs
+  var sqArr = sq.arr;
+  for i in 0..<sq.ringEntries.uint:
+    cast[ptr uint](sqArr + i)[] = i.uint;
+
 proc `=destroy`*(ring: var Ring) =
-  if ring.sq.sqes != nil:
-    discard munmap(ring.sq.sqes, int(ring.sq.ringEntries[] * sizeof(io_uring_sqe).uint))
-  if ring.sq.ringPtr != nil:
-    discard munmap(ring.sq.ringPtr, ring.sq.ringSize)
-  if ring.ringFD != 0:
-    if close(ring.ringFD) != 0:
-      raiseOsError osLastError()
+  let
+    sq = ring.sq
+    cq = ring.cq
+  var sqeSize = sizeof(io_uring_sqe)
+  if sfSqe128 in ring.flags:
+    sqeSize += 64
+  if sq.sqes != nil:
+    discard munmap(sq.sqes, int(ring.sq.ringEntries * sqeSize.uint))
+  if sq.ringPtr != nil:
+    discard munmap(sq.ringPtr, sq.ringSize);
+  if cq.ringPtr != nil and cq.ringPtr != sq.ringPtr:
+    discard munmap(cq.ringPtr, cq.ringSize);
+  if ring.ringFD != -1:
+    discard close(ring.ringFD)
 
 {.push, header: "<stdatomic.h>", importc.}
 proc atomic_load_explicit[T, A](location: ptr A; order: MemoryOrder): T
@@ -163,7 +198,7 @@ proc sqFlush*(ring: Ring): bool =
     sq = ring.sq
     tail = sq.tail[]
     toSubmit = sq.sqeTail - sq.sqeHead
-  let mask = sq.ringMask[]
+  let mask = sq.ringMask
   if toSubmit == 0:
     return false
   while toSubmit > 0:
