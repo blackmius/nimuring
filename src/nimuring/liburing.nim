@@ -13,7 +13,7 @@ type
     kflags* {.importc: "kflags".}: ref cuint
     kdropped* {.importc: "kdropped".}: ref cuint
     array* {.importc: "array".}: ref cuint
-    sqes* {.importc: "sqes".}: ref IoUringSqe
+    sqes* {.importc: "sqes".}: ptr IoUringSqe
     sqeHead* {.importc: "sqe_head".}: cuint
     sqeTail* {.importc: "sqe_tail".}: cuint
     ringSz* {.importc: "ring_sz".}: csize_t
@@ -29,7 +29,7 @@ type
     kringEntries* {.importc: "kring_entries".}: ref cuint ##  Deprecated: use `ring_entries` instead of `*kring_entries`
     kflags* {.importc: "kflags".}: ref cuint
     koverflow* {.importc: "koverflow".}: ref cuint
-    cqes* {.importc: "cqes".}: ref IoUringCqe
+    cqes* {.importc: "cqes".}: ptr IoUringCqe
     ringSz* {.importc: "ring_sz".}: csize_t
     ringPtr* {.importc: "ring_ptr".}: pointer
     ringMask* {.importc: "ring_mask".}: cuint
@@ -79,19 +79,19 @@ proc ioUringRingDontfork*(ring: ref IoUring): cint {.
     importc: "io_uring_ring_dontfork", header: "<liburing.h>".}
 proc ioUringQueueExit*(ring: ref IoUring) {.importc: "io_uring_queue_exit",
                                         header: "<liburing.h>".}
-proc ioUringPeekBatchCqe*(ring: ref IoUring; cqes: ref ref IoUringCqe; count: cuint): cuint {.
+proc ioUringPeekBatchCqe*(ring: ref IoUring; cqes: ref ptr IoUringCqe; count: cuint): cuint {.
     importc: "io_uring_peek_batch_cqe", header: "<liburing.h>".}
-proc ioUringWaitCqes*(ring: ref IoUring; cqePtr: ref ref IoUringCqe; waitNr: cuint;
+proc ioUringWaitCqes*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe; waitNr: cuint;
                      ts: ref KernelTimespec; sigmask: ref SigsetT): cint {.
     importc: "io_uring_wait_cqes", header: "<liburing.h>".}
-proc ioUringWaitCqeTimeout*(ring: ref IoUring; cqePtr: ref ref IoUringCqe;
+proc ioUringWaitCqeTimeout*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe;
                            ts: ref KernelTimespec): cint {.
     importc: "io_uring_wait_cqe_timeout", header: "<liburing.h>".}
 proc ioUringSubmit*(ring: ref IoUring): cint {.importc: "io_uring_submit",
     header: "<liburing.h>".}
 proc ioUringSubmitAndWait*(ring: ref IoUring; waitNr: cuint): cint {.
     importc: "io_uring_submit_and_wait", header: "<liburing.h>".}
-proc ioUringSubmitAndWaitTimeout*(ring: ref IoUring; cqePtr: ref ref IoUringCqe;
+proc ioUringSubmitAndWaitTimeout*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe;
                                  waitNr: cuint; ts: ref KernelTimespec;
                                  sigmask: ref SigsetT): cint {.
     importc: "io_uring_submit_and_wait_timeout", header: "<liburing.h>".}
@@ -176,7 +176,7 @@ proc ioUringSetup*(entries: cuint; p: ref IoUringParams): cint {.
     importc: "io_uring_setup", header: "<liburing.h>".}
 proc ioUringRegister*(fd: cuint; opcode: cuint; arg: pointer; nrArgs: cuint): cint {.
     importc: "io_uring_register", header: "<liburing.h>".}
-proc ioUringGetCqe*(ring: ref IoUring; cqePtr: ref ref IoUringCqe; submit: cuint;
+proc ioUringGetCqe*(ring: ref IoUring; cqePtr: ref ptr IoUringCqe; submit: cuint;
                    waitNr: cuint; sigmask: ref SigsetT): cint {.
     importc: "__io_uring_get_cqe", header: "<liburing.h>".}
   ##
@@ -188,14 +188,14 @@ var LIBURING_UDATA_TIMEOUT* {.importc: "LIBURING_UDATA_TIMEOUT",
 
 {.push, header: "<liburing.h>".}
 
-proc ioUringCqeSeen*(ring: ref IoUring; cqe: ref IoUringCqe) {.
+proc ioUringCqeSeen*(ring: ref IoUring; cqe: ptr IoUringCqe) {.
     importc: "io_uring_cqe_seen".}
   ##
   ##  Must be called after io_uring_{peek,wait}_cqe() after the cqe has
   ##  been processed by the application.
   ##
 
-proc ioUringSqeSetData*(sqe: ref IoUringSqe; data: pointer) {.
+proc ioUringSqeSetData*(sqe: ptr IoUringSqe; data: pointer) {.
     importc: "io_uring_sqe_set_data".}
   ##
   ##  Command prep helpers
@@ -205,10 +205,10 @@ proc ioUringSqeSetData*(sqe: ref IoUringSqe; data: pointer) {.
   ##  at command completion time with io_uring_cqe_get_data().
   ##
 
-proc ioUringCqeGetData*(cqe: ref IoUringCqe): pointer {.
+proc ioUringCqeGetData*(cqe: ptr IoUringCqe): pointer {.
     importc: "io_uring_cqe_get_data".}
 
-proc ioUringSqeSetData64*(sqe: ref IoUringSqe; data: U64) {.
+proc ioUringSqeSetData64*(sqe: ptr IoUringSqe; data: U64) {.
     importc: "io_uring_sqe_set_data64".}
   ##
   ##  Assign a 64-bit value to this sqe, which can get retrieved at completion
@@ -216,19 +216,19 @@ proc ioUringSqeSetData64*(sqe: ref IoUringSqe; data: U64) {.
   ##  these store a 64-bit type rather than a data pointer.
   ##
 
-proc ioUringCqeGetData64*(cqe: ref IoUringCqe): U64 {.
+proc ioUringCqeGetData64*(cqe: ptr IoUringCqe): U64 {.
     importc: "io_uring_cqe_get_data64".}
 
-proc ioUringSqeSetFlags*(sqe: ref IoUringSqe; flags: cuint) {.
+proc ioUringSqeSetFlags*(sqe: ptr IoUringSqe; flags: cuint) {.
     importc: "io_uring_sqe_set_flags".}
   ##
   ##  Tell the app the have the 64-bit variants of the get/set userdata
   ##
 
-proc ioUringPrepRw*(op: cint; sqe: ref IoUringSqe; fd: cint; `addr`: pointer; len: cuint;
+proc ioUringPrepRw*(op: cint; sqe: ptr IoUringSqe; fd: cint; `addr`: pointer; len: cuint;
                    offset: U64) {.importc: "io_uring_prep_rw".}
 
-proc ioUringPrepSplice*(sqe: ref IoUringSqe; fdIn: cint; offIn: int64; fdOut: cint;
+proc ioUringPrepSplice*(sqe: ptr IoUringSqe; fdIn: cint; offIn: int64; fdOut: cint;
                        offOut: int64; nbytes: cuint; spliceFlags: cuint) {.
     importc: "io_uring_prep_splice".}
   ##
@@ -252,154 +252,154 @@ proc ioUringPrepSplice*(sqe: ref IoUringSqe; fdIn: cint; offIn: int64; fdOut: ci
   ##  operation, e.g. reading from terminal is unsupported from kernel 5.7 to 5.11.
   ##  Check issue #291 for more information.
 
-proc ioUringPrepTee*(sqe: ref IoUringSqe; fdIn: cint; fdOut: cint; nbytes: cuint;
+proc ioUringPrepTee*(sqe: ptr IoUringSqe; fdIn: cint; fdOut: cint; nbytes: cuint;
                     spliceFlags: cuint) {.importc: "io_uring_prep_tee".}
 
-proc ioUringPrepReadv*(sqe: ref IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
+proc ioUringPrepReadv*(sqe: ptr IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
                       offset: U64) {.importc: "io_uring_prep_readv".}
 
-proc ioUringPrepReadv2*(sqe: ref IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
+proc ioUringPrepReadv2*(sqe: ptr IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
                        offset: U64; flags: cint) {.importc: "io_uring_prep_readv2".}
 
-proc ioUringPrepReadFixed*(sqe: ref IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
+proc ioUringPrepReadFixed*(sqe: ptr IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
                           offset: U64; bufIndex: cint) {.
     importc: "io_uring_prep_read_fixed".}
 
-proc ioUringPrepWritev*(sqe: ref IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
+proc ioUringPrepWritev*(sqe: ptr IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
                        offset: U64) {.importc: "io_uring_prep_writev".}
 
-proc ioUringPrepWritev2*(sqe: ref IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
+proc ioUringPrepWritev2*(sqe: ptr IoUringSqe; fd: cint; iovecs: ref Iovec; nrVecs: cuint;
                         offset: U64; flags: cint) {.importc: "io_uring_prep_writev2".}
 
-proc ioUringPrepWriteFixed*(sqe: ref IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
+proc ioUringPrepWriteFixed*(sqe: ptr IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
                            offset: U64; bufIndex: cint) {.
     importc: "io_uring_prep_write_fixed".}
 
-proc ioUringPrepRecvmsg*(sqe: ref IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepRecvmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
     importc: "io_uring_prep_recvmsg".}
 
-proc ioUringPrepRecvmsgMultishot*(sqe: ref IoUringSqe; fd: cint; msg: ref Msghdr;
+proc ioUringPrepRecvmsgMultishot*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr;
                                  flags: cuint) {.
     importc: "io_uring_prep_recvmsg_multishot".}
 
-proc ioUringPrepSendmsg*(sqe: ref IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepSendmsg*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
     importc: "io_uring_prep_sendmsg".}
 
-proc ioUringPrepPollAdd*(sqe: ref IoUringSqe; fd: cint; pollMask: cuint) {.
+proc ioUringPrepPollAdd*(sqe: ptr IoUringSqe; fd: cint; pollMask: cuint) {.
     importc: "io_uring_prep_poll_add".}
 
-proc ioUringPrepPollMultishot*(sqe: ref IoUringSqe; fd: cint; pollMask: cuint) {.
+proc ioUringPrepPollMultishot*(sqe: ptr IoUringSqe; fd: cint; pollMask: cuint) {.
     importc: "io_uring_prep_poll_multishot".}
 
-proc ioUringPrepPollRemove*(sqe: ref IoUringSqe; userData: U64) {.
+proc ioUringPrepPollRemove*(sqe: ptr IoUringSqe; userData: U64) {.
     importc: "io_uring_prep_poll_remove".}
 
-proc ioUringPrepPollUpdate*(sqe: ref IoUringSqe; oldUserData: U64; newUserData: U64;
+proc ioUringPrepPollUpdate*(sqe: ptr IoUringSqe; oldUserData: U64; newUserData: U64;
                            pollMask: cuint; flags: cuint) {.
     importc: "io_uring_prep_poll_update".}
 
-proc ioUringPrepFsync*(sqe: ref IoUringSqe; fd: cint; fsyncFlags: cuint) {.
+proc ioUringPrepFsync*(sqe: ptr IoUringSqe; fd: cint; fsyncFlags: cuint) {.
     importc: "io_uring_prep_fsync".}
 
-proc ioUringPrepNop*(sqe: ref IoUringSqe) {.importc: "io_uring_prep_nop".}
+proc ioUringPrepNop*(sqe: ptr IoUringSqe) {.importc: "io_uring_prep_nop".}
 
-proc ioUringPrepTimeout*(sqe: ref IoUringSqe; ts: ref KernelTimespec; count: cuint;
+proc ioUringPrepTimeout*(sqe: ptr IoUringSqe; ts: ref KernelTimespec; count: cuint;
                         flags: cuint) {.importc: "io_uring_prep_timeout".}
 
-proc ioUringPrepTimeoutRemove*(sqe: ref IoUringSqe; userData: U64; flags: cuint) {.
+proc ioUringPrepTimeoutRemove*(sqe: ptr IoUringSqe; userData: U64; flags: cuint) {.
     importc: "io_uring_prep_timeout_remove".}
 
-proc ioUringPrepTimeoutUpdate*(sqe: ref IoUringSqe; ts: ref KernelTimespec;
+proc ioUringPrepTimeoutUpdate*(sqe: ptr IoUringSqe; ts: ref KernelTimespec;
                               userData: U64; flags: cuint) {.
     importc: "io_uring_prep_timeout_update".}
 
-proc ioUringPrepAccept*(sqe: ref IoUringSqe; fd: cint; `addr`: ref Sockaddr;
+proc ioUringPrepAccept*(sqe: ptr IoUringSqe; fd: cint; `addr`: ref Sockaddr;
                        addrlen: ref SocklenT; flags: cint) {.
     importc: "io_uring_prep_accept".}
 
-proc ioUringPrepAcceptDirect*(sqe: ref IoUringSqe; fd: cint; `addr`: ref Sockaddr;
+proc ioUringPrepAcceptDirect*(sqe: ptr IoUringSqe; fd: cint; `addr`: ref Sockaddr;
                              addrlen: ref SocklenT; flags: cint; fileIndex: cuint) {.
     importc: "io_uring_prep_accept_direct".}
 
-proc ioUringPrepMultishotAccept*(sqe: ref IoUringSqe; fd: cint; `addr`: ref Sockaddr;
+proc ioUringPrepMultishotAccept*(sqe: ptr IoUringSqe; fd: cint; `addr`: ref Sockaddr;
                                 addrlen: ref SocklenT; flags: cint) {.
     importc: "io_uring_prep_multishot_accept".}
 
-proc ioUringPrepMultishotAcceptDirect*(sqe: ref IoUringSqe; fd: cint;
+proc ioUringPrepMultishotAcceptDirect*(sqe: ptr IoUringSqe; fd: cint;
                                       `addr`: ref Sockaddr; addrlen: ref SocklenT;
                                       flags: cint) {.
     importc: "io_uring_prep_multishot_accept_direct".}
 
-proc ioUringPrepCancel64*(sqe: ref IoUringSqe; userData: U64; flags: cint) {.
+proc ioUringPrepCancel64*(sqe: ptr IoUringSqe; userData: U64; flags: cint) {.
     importc: "io_uring_prep_cancel64".}
 
-proc ioUringPrepCancel*(sqe: ref IoUringSqe; userData: pointer; flags: cint) {.
+proc ioUringPrepCancel*(sqe: ptr IoUringSqe; userData: pointer; flags: cint) {.
     importc: "io_uring_prep_cancel".}
 
-proc ioUringPrepCancelFd*(sqe: ref IoUringSqe; fd: cint; flags: cuint) {.
+proc ioUringPrepCancelFd*(sqe: ptr IoUringSqe; fd: cint; flags: cuint) {.
     importc: "io_uring_prep_cancel_fd".}
 
-proc ioUringPrepLinkTimeout*(sqe: ref IoUringSqe; ts: ref KernelTimespec; flags: cuint) {.
+proc ioUringPrepLinkTimeout*(sqe: ptr IoUringSqe; ts: ref KernelTimespec; flags: cuint) {.
     importc: "io_uring_prep_link_timeout".}
 
-proc ioUringPrepConnect*(sqe: ref IoUringSqe; fd: cint; `addr`: ref Sockaddr;
+proc ioUringPrepConnect*(sqe: ptr IoUringSqe; fd: cint; `addr`: ref Sockaddr;
                         addrlen: SocklenT) {.importc: "io_uring_prep_connect".}
 
-proc ioUringPrepFilesUpdate*(sqe: ref IoUringSqe; fds: ref cint; nrFds: cuint;
+proc ioUringPrepFilesUpdate*(sqe: ptr IoUringSqe; fds: ref cint; nrFds: cuint;
                             offset: cint) {.importc: "io_uring_prep_files_update".}
 
-proc ioUringPrepFallocate*(sqe: ref IoUringSqe; fd: cint; mode: cint; offset: OffT;
+proc ioUringPrepFallocate*(sqe: ptr IoUringSqe; fd: cint; mode: cint; offset: OffT;
                           len: OffT) {.importc: "io_uring_prep_fallocate".}
 
-proc ioUringPrepOpenat*(sqe: ref IoUringSqe; dfd: cint; path: cstring; flags: cint;
+proc ioUringPrepOpenat*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; flags: cint;
                        mode: ModeT) {.importc: "io_uring_prep_openat".}
 
-proc ioUringPrepOpenatDirect*(sqe: ref IoUringSqe; dfd: cint; path: cstring;
+proc ioUringPrepOpenatDirect*(sqe: ptr IoUringSqe; dfd: cint; path: cstring;
                              flags: cint; mode: ModeT; fileIndex: cuint) {.
     importc: "io_uring_prep_openat_direct".}
 
-proc ioUringPrepClose*(sqe: ref IoUringSqe; fd: cint) {.importc: "io_uring_prep_close".}
+proc ioUringPrepClose*(sqe: ptr IoUringSqe; fd: cint) {.importc: "io_uring_prep_close".}
 
-proc ioUringPrepCloseDirect*(sqe: ref IoUringSqe; fileIndex: cuint) {.
+proc ioUringPrepCloseDirect*(sqe: ptr IoUringSqe; fileIndex: cuint) {.
     importc: "io_uring_prep_close_direct".}
 
-proc ioUringPrepRead*(sqe: ref IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
+proc ioUringPrepRead*(sqe: ptr IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
                      offset: U64) {.importc: "io_uring_prep_read".}
 
-proc ioUringPrepWrite*(sqe: ref IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
+proc ioUringPrepWrite*(sqe: ptr IoUringSqe; fd: cint; buf: pointer; nbytes: cuint;
                       offset: U64) {.importc: "io_uring_prep_write".}
 
-proc ioUringPrepStatx*(sqe: ref IoUringSqe; dfd: cint; path: cstring; flags: cint;
+proc ioUringPrepStatx*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; flags: cint;
                       mask: cuint; statxbuf: ref Statx) {.
     importc: "io_uring_prep_statx".}
 
-proc ioUringPrepFadvise*(sqe: ref IoUringSqe; fd: cint; offset: U64; len: OffT;
+proc ioUringPrepFadvise*(sqe: ptr IoUringSqe; fd: cint; offset: U64; len: OffT;
                         advice: cint) {.importc: "io_uring_prep_fadvise".}
 
-proc ioUringPrepMadvise*(sqe: ref IoUringSqe; `addr`: pointer; length: OffT;
+proc ioUringPrepMadvise*(sqe: ptr IoUringSqe; `addr`: pointer; length: OffT;
                         advice: cint) {.importc: "io_uring_prep_madvise".}
 
-proc ioUringPrepSend*(sqe: ref IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
+proc ioUringPrepSend*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
                      flags: cint) {.importc: "io_uring_prep_send".}
 
-proc ioUringPrepSendZc*(sqe: ref IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
+proc ioUringPrepSendZc*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
                        flags: cint; zcFlags: cuint) {.
     importc: "io_uring_prep_send_zc".}
 
-proc ioUringPrepSendZcFixed*(sqe: ref IoUringSqe; sockfd: cint; buf: pointer;
+proc ioUringPrepSendZcFixed*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer;
                             len: csize_t; flags: cint; zcFlags: cuint; bufIndex: cuint) {.
     importc: "io_uring_prep_send_zc_fixed".}
 
-proc ioUringPrepSendmsgZc*(sqe: ref IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
+proc ioUringPrepSendmsgZc*(sqe: ptr IoUringSqe; fd: cint; msg: ref Msghdr; flags: cuint) {.
     importc: "io_uring_prep_sendmsg_zc".}
 
-proc ioUringPrepSendSetAddr*(sqe: ref IoUringSqe; destAddr: ref Sockaddr; addrLen: U16) {.
+proc ioUringPrepSendSetAddr*(sqe: ptr IoUringSqe; destAddr: ref Sockaddr; addrLen: U16) {.
     importc: "io_uring_prep_send_set_addr".}
 
-proc ioUringPrepRecv*(sqe: ref IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
+proc ioUringPrepRecv*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer; len: csize_t;
                      flags: cint) {.importc: "io_uring_prep_recv".}
 
-proc ioUringPrepRecvMultishot*(sqe: ref IoUringSqe; sockfd: cint; buf: pointer;
+proc ioUringPrepRecvMultishot*(sqe: ptr IoUringSqe; sockfd: cint; buf: pointer;
                               len: csize_t; flags: cint) {.
     importc: "io_uring_prep_recv_multishot".}
 
@@ -423,95 +423,95 @@ proc ioUringRecvmsgPayloadLength*(o: ref IoUringRecvmsgOut; bufLen: cint;
                                  msgh: ref Msghdr): cuint {.
     importc: "io_uring_recvmsg_payload_length".}
 
-proc ioUringPrepOpenat2*(sqe: ref IoUringSqe; dfd: cint; path: cstring; how: ref OpenHow) {.
+proc ioUringPrepOpenat2*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; how: ref OpenHow) {.
     importc: "io_uring_prep_openat2".}
 
-proc ioUringPrepOpenat2Direct*(sqe: ref IoUringSqe; dfd: cint; path: cstring;
+proc ioUringPrepOpenat2Direct*(sqe: ptr IoUringSqe; dfd: cint; path: cstring;
                               how: ref OpenHow; fileIndex: cuint) {.
     importc: "io_uring_prep_openat2_direct".}
 
-proc ioUringPrepEpollCtl*(sqe: ref IoUringSqe; epfd: cint; fd: cint; op: cint;
+proc ioUringPrepEpollCtl*(sqe: ptr IoUringSqe; epfd: cint; fd: cint; op: cint;
                          ev: ref EpollEvent) {.importc: "io_uring_prep_epoll_ctl".}
 
-proc ioUringPrepProvideBuffers*(sqe: ref IoUringSqe; `addr`: pointer; len: cint;
+proc ioUringPrepProvideBuffers*(sqe: ptr IoUringSqe; `addr`: pointer; len: cint;
                                nr: cint; bgid: cint; bid: cint) {.
     importc: "io_uring_prep_provide_buffers".}
 
-proc ioUringPrepRemoveBuffers*(sqe: ref IoUringSqe; nr: cint; bgid: cint) {.
+proc ioUringPrepRemoveBuffers*(sqe: ptr IoUringSqe; nr: cint; bgid: cint) {.
     importc: "io_uring_prep_remove_buffers".}
 
-proc ioUringPrepShutdown*(sqe: ref IoUringSqe; fd: cint; how: cint) {.
+proc ioUringPrepShutdown*(sqe: ptr IoUringSqe; fd: cint; how: cint) {.
     importc: "io_uring_prep_shutdown".}
 
-proc ioUringPrepUnlinkat*(sqe: ref IoUringSqe; dfd: cint; path: cstring; flags: cint) {.
+proc ioUringPrepUnlinkat*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; flags: cint) {.
     importc: "io_uring_prep_unlinkat".}
 
-proc ioUringPrepUnlink*(sqe: ref IoUringSqe; path: cstring; flags: cint) {.
+proc ioUringPrepUnlink*(sqe: ptr IoUringSqe; path: cstring; flags: cint) {.
     importc: "io_uring_prep_unlink".}
 
-proc ioUringPrepRenameat*(sqe: ref IoUringSqe; olddfd: cint; oldpath: cstring;
+proc ioUringPrepRenameat*(sqe: ptr IoUringSqe; olddfd: cint; oldpath: cstring;
                          newdfd: cint; newpath: cstring; flags: cuint) {.
     importc: "io_uring_prep_renameat".}
 
-proc ioUringPrepRename*(sqe: ref IoUringSqe; oldpath: cstring; newpath: cstring) {.
+proc ioUringPrepRename*(sqe: ptr IoUringSqe; oldpath: cstring; newpath: cstring) {.
     importc: "io_uring_prep_rename".}
 
-proc ioUringPrepSyncFileRange*(sqe: ref IoUringSqe; fd: cint; len: cuint; offset: U64;
+proc ioUringPrepSyncFileRange*(sqe: ptr IoUringSqe; fd: cint; len: cuint; offset: U64;
                               flags: cint) {.
     importc: "io_uring_prep_sync_file_range".}
 
-proc ioUringPrepMkdirat*(sqe: ref IoUringSqe; dfd: cint; path: cstring; mode: ModeT) {.
+proc ioUringPrepMkdirat*(sqe: ptr IoUringSqe; dfd: cint; path: cstring; mode: ModeT) {.
     importc: "io_uring_prep_mkdirat".}
-proc ioUringPrepMkdir*(sqe: ref IoUringSqe; path: cstring; mode: ModeT) {.
+proc ioUringPrepMkdir*(sqe: ptr IoUringSqe; path: cstring; mode: ModeT) {.
     importc: "io_uring_prep_mkdir".}
 
-proc ioUringPrepSymlinkat*(sqe: ref IoUringSqe; target: cstring; newdirfd: cint;
+proc ioUringPrepSymlinkat*(sqe: ptr IoUringSqe; target: cstring; newdirfd: cint;
                           linkpath: cstring) {.importc: "io_uring_prep_symlinkat".}
 
-proc ioUringPrepSymlink*(sqe: ref IoUringSqe; target: cstring; linkpath: cstring) {.
+proc ioUringPrepSymlink*(sqe: ptr IoUringSqe; target: cstring; linkpath: cstring) {.
     importc: "io_uring_prep_symlink".}
 
-proc ioUringPrepLinkat*(sqe: ref IoUringSqe; olddfd: cint; oldpath: cstring;
+proc ioUringPrepLinkat*(sqe: ptr IoUringSqe; olddfd: cint; oldpath: cstring;
                        newdfd: cint; newpath: cstring; flags: cint) {.
     importc: "io_uring_prep_linkat".}
 
-proc ioUringPrepLink*(sqe: ref IoUringSqe; oldpath: cstring; newpath: cstring;
+proc ioUringPrepLink*(sqe: ptr IoUringSqe; oldpath: cstring; newpath: cstring;
                      flags: cint) {.importc: "io_uring_prep_link".}
 
-proc ioUringPrepMsgRingCqeFlags*(sqe: ref IoUringSqe; fd: cint; len: cuint; data: U64;
+proc ioUringPrepMsgRingCqeFlags*(sqe: ptr IoUringSqe; fd: cint; len: cuint; data: U64;
                                 flags: cuint; cqeFlags: cuint) {.
     importc: "io_uring_prep_msg_ring_cqe_flags".}
 
-proc ioUringPrepMsgRing*(sqe: ref IoUringSqe; fd: cint; len: cuint; data: U64;
+proc ioUringPrepMsgRing*(sqe: ptr IoUringSqe; fd: cint; len: cuint; data: U64;
                         flags: cuint) {.importc: "io_uring_prep_msg_ring".}
 
-proc ioUringPrepMsgRingFd*(sqe: ref IoUringSqe; fd: cint; sourceFd: cint;
+proc ioUringPrepMsgRingFd*(sqe: ptr IoUringSqe; fd: cint; sourceFd: cint;
                           targetFd: cint; data: U64; flags: cuint) {.
     importc: "io_uring_prep_msg_ring_fd".}
 
-proc ioUringPrepGetxattr*(sqe: ref IoUringSqe; name: cstring; value: cstring;
+proc ioUringPrepGetxattr*(sqe: ptr IoUringSqe; name: cstring; value: cstring;
                          path: cstring; len: cuint) {.
     importc: "io_uring_prep_getxattr".}
 
-proc ioUringPrepSetxattr*(sqe: ref IoUringSqe; name: cstring; value: cstring;
+proc ioUringPrepSetxattr*(sqe: ptr IoUringSqe; name: cstring; value: cstring;
                          path: cstring; flags: cint; len: cuint) {.
     importc: "io_uring_prep_setxattr".}
 
-proc ioUringPrepFgetxattr*(sqe: ref IoUringSqe; fd: cint; name: cstring; value: cstring;
+proc ioUringPrepFgetxattr*(sqe: ptr IoUringSqe; fd: cint; name: cstring; value: cstring;
                           len: cuint) {.importc: "io_uring_prep_fgetxattr".}
 
-proc ioUringPrepFsetxattr*(sqe: ref IoUringSqe; fd: cint; name: cstring; value: cstring;
+proc ioUringPrepFsetxattr*(sqe: ptr IoUringSqe; fd: cint; name: cstring; value: cstring;
                           flags: cint; len: cuint) {.
     importc: "io_uring_prep_fsetxattr".}
 
-proc ioUringPrepSocket*(sqe: ref IoUringSqe; domain: cint; `type`: cint; protocol: cint;
+proc ioUringPrepSocket*(sqe: ptr IoUringSqe; domain: cint; `type`: cint; protocol: cint;
                        flags: cuint) {.importc: "io_uring_prep_socket".}
 
-proc ioUringPrepSocketDirect*(sqe: ref IoUringSqe; domain: cint; `type`: cint;
+proc ioUringPrepSocketDirect*(sqe: ptr IoUringSqe; domain: cint; `type`: cint;
                              protocol: cint; fileIndex: cuint; flags: cuint) {.
     importc: "io_uring_prep_socket_direct".}
 
-proc ioUringPrepSocketDirectAlloc*(sqe: ref IoUringSqe; domain: cint; `type`: cint;
+proc ioUringPrepSocketDirectAlloc*(sqe: ptr IoUringSqe; domain: cint; `type`: cint;
                                   protocol: cint; flags: cuint) {.
     importc: "io_uring_prep_socket_direct_alloc".}
 
@@ -533,13 +533,13 @@ proc ioUringCqEventfdEnabled*(ring: ref IoUring): bool {.
 proc ioUringCqEventfdToggle*(ring: ref IoUring; enabled: bool): cint {.
     importc: "io_uring_cq_eventfd_toggle".}
 
-proc ioUringWaitCqeNr*(ring: ref IoUring; cqePtr: ref ref IoUringCqe; waitNr: cuint): cint {.
+proc ioUringWaitCqeNr*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe; waitNr: cuint): cint {.
     importc: "io_uring_wait_cqe_nr".}
 
-proc ioUringPeekCqe*(ring: ref IoUring; cqePtr: ref ref IoUringCqe): cint {.
+proc ioUringPeekCqe*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe): cint {.
     importc: "io_uring_peek_cqe".}
 
-proc ioUringWaitCqe*(ring: ref IoUring; cqePtr: ref ref IoUringCqe): cint {.
+proc ioUringWaitCqe*(ring: ref IoUring; cqePtr: ptr ptr IoUringCqe): cint {.
     importc: "io_uring_wait_cqe".}
 
 proc ioUringBufRingMask*(ringEntries: U32): cint {.importc: "io_uring_buf_ring_mask".}
@@ -556,7 +556,7 @@ proc ioUringBufRingAdvance*(br: ref IoUringBufRing; count: cint) {.
 proc ioUringBufRingCqAdvance*(ring: ref IoUring; br: ref IoUringBufRing; count: cint) {.
     importc: "io_uring_buf_ring_cq_advance".}
 
-proc ioUringGetSqe*(ring: ref IoUring): ref IoUringSqe {.importc: "io_uring_get_sqe".}
+proc ioUringGetSqe*(ring: ref IoUring): ptr IoUringSqe {.importc: "io_uring_get_sqe".}
 proc ioUringMlockSize*(entries: cuint; flags: cuint): SsizeT {.
     importc: "io_uring_mlock_size", header: "<liburing.h>".}
 proc ioUringMlockSizeParams*(entries: cuint; p: ref IoUringParams): SsizeT {.
