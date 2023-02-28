@@ -270,7 +270,6 @@ type
     res: int
     flags: CompletionQueueEntryFlags
 
-
 template getCqe(
   ring: Ring, cqe: var CompletionQueueEntry, submit: var uint, waitNr: uint,
   getFlags: EnterFlags = {}, sz: int = 4, hasTs: bool = false, arg: pointer = nil): int =
@@ -392,3 +391,26 @@ template cqeSeen*(ring: Ring, cqe: var CompletionQueueEntry) =
   ## been processed by the application.
   if cqe != nil:
     ring.cqAdvance(1)
+
+template getSqe*(ring: Ring): ref io_uring_sqe =
+  ## Return an sqe to fill. Application must later call io_uring_submit()
+  ## when it's ready to tell the kernel about it. The caller may call this
+  ## function multiple times before calling io_uring_submit().
+  ## Returns a vacant sqe, or NULL if we're full.
+  let sq = ring.sq
+  var
+    head: uint
+    next = sq.sqeTail + 1
+    shift = 0
+  if sfSqe128 in ring.flags:
+    shift = 1
+  if sfSqpoll in ring.flags:
+    head = atomic_load_explicit(sq.head, moRelaxed)
+  else:
+    head = atomic_load_explicit(sq.head, moAcquire)
+  if next - head <= sq.ringEntries:
+    var sqe: ref io_uring_sqe = io_uring_sqe()
+    sqe = sq.sqes[(sq.sqeTail and sq.ringMask) shl shift]
+    sq.sqeTail = next
+    return sqe
+  return nil
