@@ -1,4 +1,4 @@
-import posix
+import posix, os
 
 type
   KernelRwfT* {.importc: "__kernel_rwf_t", header: "<linux/fs.h>".} = int
@@ -300,6 +300,7 @@ type
     ringEntries* {.importc: "ring_entries".}: uint32
     flags* {.importc: "flags".}: SqringFlags
     dropped* {.importc: "dropped".}: uint32
+    array* {.importc: "array".}: uint32
   
   SqringFlag* {.size: sizeof(uint32).} = enum
     SQ_NEED_WAKEUP ## needs io_uring_enter wakeup
@@ -320,9 +321,12 @@ type
     CQ_EVENTFD_DISABLED ## disable eventfd notifications
   CqringFlags* = set[CqringFlag]
 
-const OFF_SQ_RING* = 0u
-const OFF_CQ_RING* = 0x8000000u
-const OFF_SQES* = 0x10000000u
+const OFF_SQ_RING*: Off = 0
+const OFF_CQ_RING*: Off = 0x8000000
+const OFF_SQES*: Off = 0x10000000
+
+proc `+`*(p: pointer; i: SomeInteger): pointer =
+  result = cast[pointer](cast[uint](p) + i.uint)
 
 type
   EnterFlag* {.size: sizeof(cint).} = enum
@@ -333,10 +337,45 @@ type
     ENTER_REGISTERED_RING
   EnterFlags* = set[EnterFlag]
 
-proc setup*(entries: cint, params: ref Params): cint {.importc: "sys_io_uring_setup", header: "<unistd.h>".}
+proc uringMap*(offset: Off; fd: FileHandle; begin: uint32;
+               count: uint32; typ: typedesc): pointer =
+  let
+    size = int (begin + count * sizeof(typ).uint32)
+  result = mmap(nil, size,
+                ProtRead or ProtWrite, MapShared or MapPopulate,
+                fd.cint, offset)
+  if result == MapFailed:
+    result = nil
+    raiseOSError osLastError()
+
+proc uringUnmap*(p: pointer; size: int) =
+  ## interface to tear down some memory (probably mmap'd)
+  let
+    code = munmap(p, size)
+  if code < 0:
+    raiseOSError osLastError()
+
+proc syscall(arg: cint): cint {.importc, header: "<unistd.h>", varargs.}
+var
+  SYS_io_uring_setup {.importc, header: "<sys/syscall.h>".}: cint
+  SYS_io_uring_enter2 {.importc, header: "<sys/syscall.h>".}: cint
+  SYS_io_uring_register {.importc, header: "<sys/syscall.h>".}: cint
+
+proc setup*(entries: cint, params: ptr Params): FileHandle =
+  result = syscall(SYS_io_uring_setup, entries, params)
+  if result < 0:
+    raiseOSError osLastError()
+
 proc enter*(fd: cint, toSubmit: cint, minComplete: cint,
-            flags: EnterFlags, sig: ref Sigset, sz: cint): cint {.importc: "sys_io_uring_enter", header: "<unistd.h>".}
-proc register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint {.importc: "sys_io_uring_register", header: "<unistd.h>".}
+                         flags: cint, sig: ref Sigset, sz: cint): cint =
+  result = syscall(SYS_io_uring_enter2, fd, toSubmit, minComplete, flags, sig, sz)
+  if result < 0:
+    raiseOSError osLastError()
+
+proc register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint =
+  result = syscall(SYS_io_uring_register, fd, op, arg, nr_args)
+  if result < 0:
+    raiseOSError osLastError()
 
 type
   ## io_uring_register(2) opcodes and arguments
