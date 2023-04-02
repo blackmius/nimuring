@@ -328,6 +328,9 @@ const OFF_SQES*: Off = 0x10000000
 proc `+`*(p: pointer; i: SomeInteger): pointer =
   result = cast[pointer](cast[uint](p) + i.uint)
 
+proc `-`*(p1: pointer; p2: pointer): uint =
+  result = cast[uint](p1) - cast[uint](p2)
+
 type
   EnterFlag* {.size: sizeof(cint).} = enum
     ENTER_GETEVENTS
