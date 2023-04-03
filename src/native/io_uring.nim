@@ -3,19 +3,20 @@ import posix, os
 type
   KernelRwfT* {.importc: "__kernel_rwf_t", header: "<linux/fs.h>".} = int
 
+type
   ## IO submission data structure (Submission Queue Entry)
   Sqe* {.importc: "struct io_uring_sqe", header: "<linux/io_uring.h>", bycopy.} = object
     opcode* {.importc: "opcode".}: Op ##  type of operation for this sqe
     flags* {.importc: "flags".}: SqeFlags
     ioprio* {.importc: "ioprio".}: IoprioFlags ##  ioprio for the request
-    fd* {.importc: "fd".}: int32   ##  file descriptor to do IO on
-    off* {.importc: "off".}: uint64 ##  offset into file
-    addr2* {.importc: "addr2".}: uint64
+    fd* {.importc: "fd".}: FileHandle   ##  file descriptor to do IO on
+    off* {.importc: "off".}: Off ##  offset into file
+    addr2* {.importc: "addr2".}: pointer
     cmdOp* {.importc: "cmd_op".}: uint32
-    pad1* {.importc: "__pad1".}: uint32
-    `addr`* {.importc: "addr".}: uint64 ##  pointer to buffer or iovecs
-    spliceOffIn* {.importc: "splice_off_in".}: uint64
-    len* {.importc: "len".}: uint32 ##  buffer size or number of iovecs
+    pad1* {.importc: "__pad1".}: Off
+    `addr`* {.importc: "addr".}: pointer ##  pointer to buffer or iovecs
+    spliceOffIn* {.importc: "splice_off_in".}: Off
+    len* {.importc: "len".}: int ##  buffer size or number of iovecs
     rwFlags* {.importc: "rw_flags".}: KernelRwfT
     fsyncFlags* {.importc: "fsync_flags".}: FsyncFlags
     pollEvents* {.importc: "poll_events".}: PollFlags ##  compatibility
@@ -35,7 +36,7 @@ type
     xattrFlags* {.importc: "xattr_flags".}: uint32
     msgRingFlags* {.importc: "msg_ring_flags".}: MsgRingOpFlags
     uringCmdFlags* {.importc: "uring_cmd_flags".}: uint32
-    userData* {.importc: "user_data".}: uint64 ##  data to be passed back at completion time
+    userData* {.importc: "user_data".}: pointer ##  data to be passed back at completion time
     bufIndex* {.importc: "buf_index".}: uint16 ##  index into fixed buffers, if used
     bufGroup* {.importc: "buf_group".}: uint16 ##  for grouped buffer selection
     personality* {.importc: "personality".}: uint16
@@ -43,10 +44,11 @@ type
     fileIndex* {.importc: "file_index".}: uint32
     addrLen* {.importc: "addr_len".}: uint16
     pad3* {.importc: "__pad3".}: array[1, uint16]
-    addr3* {.importc: "addr3".}: uint64
+    addr3* {.importc: "addr3".}: pointer
     pad2* {.importc: "__pad2".}: array[1, uint64]
-    cmd* {.importc: "cmd".}: UncheckedArray[uint8] ## If the ring is initialized with SETUP_SQE128, then
-                                                   ## this field is used for 80 bytes of arbitrary command data
+    cmd* {.importc: "cmd".}: uint8 ## If the ring is initialized with SETUP_SQE128, then
+                                   ## this field is used for 80 bytes of arbitrary command data
+
   Op* {.size: sizeof(uint8).} = enum
     OP_NOP
     OP_READV
@@ -361,7 +363,7 @@ proc uringUnmap*(p: pointer; size: int) =
 proc syscall(arg: cint): cint {.importc, header: "<unistd.h>", varargs.}
 var
   SYS_io_uring_setup {.importc, header: "<sys/syscall.h>".}: cint
-  SYS_io_uring_enter2 {.importc, header: "<sys/syscall.h>".}: cint
+  SYS_io_uring_enter {.importc, header: "<sys/syscall.h>".}: cint
   SYS_io_uring_register {.importc, header: "<sys/syscall.h>".}: cint
 
 proc setup*(entries: cint, params: ptr Params): FileHandle =
@@ -371,7 +373,7 @@ proc setup*(entries: cint, params: ptr Params): FileHandle =
 
 proc enter*(fd: cint, toSubmit: cint, minComplete: cint,
                          flags: cint, sig: ref Sigset, sz: cint): cint =
-  result = syscall(SYS_io_uring_enter2, fd, toSubmit, minComplete, flags, sig, sz)
+  result = syscall(SYS_io_uring_enter, fd, toSubmit, minComplete, flags, sig, sz)
   if result < 0:
     raiseOSError osLastError()
 

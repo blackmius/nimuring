@@ -31,6 +31,9 @@ type
     array: pointer
     sqes: ptr Sqe
 
+    sqe_tail: uint32
+    sqe_head: uint32
+
   CqRing = object of Ring
     flags: CqringFlags
     overflow: pointer
@@ -90,26 +93,31 @@ proc newQueue*(entries: uint32, flags = defaultFlags, sqThreadCpu = false, sqThr
   result.cq = newRing(result.fd, addr params.cqOff, params.cqEntries)
   result.sq = newRing(result.fd, addr params.sqOff, params.sqEntries)
 
-  echo result.sq.ring_mask[]
-  echo result.sq.head[]
-  echo result.sq.tail[]
-
-proc sqFlush(queue: Queue): int =
+proc sqFlush(queue: var Queue): int =
   ## Sync internal state with kernel ring state on the SQ side. Returns the
   ## number of pending items in the SQ ring, for the shared ring.
   var
     sq = queue.sq
-    tail = sq.tail
-  if sq.head != tail:
-    sq.head = tail
+    tail = sq.sqe_tail
+  if sq.sqe_head != tail:
+    queue.sq.sqe_head = tail
     # Ensure kernel sees the SQE updates before the tail update.
     if SetupSqpoll in queue.params.flags:
-      atomic_store_explicit(addr sq.tail, tail, moRelaxed)
+      atomic_store_explicit(sq.tail, tail, moRelaxed)
     else:
-      atomic_store_explicit(addr sq.tail, tail, moRelease)
-  return int(tail - sq.head)
+      atomic_store_explicit(sq.tail, tail, moRelease)
+  # This _may_ look problematic, as we're not supposed to be reading
+  # SQ->head without acquire semantics. When we're in SQPOLL mode, the
+  # kernel submitter could be updating this right now. For non-SQPOLL,
+  # task itself does it, and there's no potential race. But even for
+  # SQPOLL, the load is going to be potentially out-of-date the very
+  # instant it's done, regardless or whether or not it's done
+  # atomically. Worst case, we're going to be over-estimating what
+  # we can submit. The point is, we need to be able to deal with this
+  # situation regardless of any perceived atomicity.
+  return int(tail - sq.head[])
 
-proc getSqe*(queue: Queue): ptr Sqe =
+proc getSqe*(queue: var Queue): ptr Sqe =
   ## Return an sqe to fill. Application must later call queue.submit()
   ## when it's ready to tell the kernel about it. The caller may call this
   ## function multiple times before calling queue.submit().
@@ -118,7 +126,7 @@ proc getSqe*(queue: Queue): ptr Sqe =
   var
     sq = queue.sq
     head: uint32
-    next = sq.tail[] + 1
+    next = sq.sqe_tail + 1
     shift = 0
   if SetupSqe128 in queue.params.flags:
     shift = 1
@@ -127,18 +135,18 @@ proc getSqe*(queue: Queue): ptr Sqe =
   else:
     head = atomic_load_explicit(sq.head, moAcquire)
   if next - head <= sq.ringEntries[]:
-    let index = (sq.tail[] and sq.ringMask[]) shl shift
+    let index = (sq.sqe_tail and sq.ringMask[]) shl shift
     result = cast[ptr Sqe](sq.sqes + index.int * sizeof(Sqe))
-    sq.tail[] = next
+    queue.sq.sqe_tail = next
 
-proc sqNeedsEnter(queue: Queue, submit: int, flags: var EnterFlags): bool =
+proc sqNeedsEnter(queue: var Queue, submit: int, flags: var EnterFlags): bool =
   ## Returns true if we're not using SQ thread (thus nobody submits but us)
   ## or if IORING_SQ_NEED_WAKEUP is set, so submit thread must be explicitly
   ## awakened. For the latter case, we set the thread wakeup flag.
   ## If no SQEs are ready for submission, returns false.
   if submit == 0:
     return false
-  if SetupSqpoll in queue.params.flags:
+  if SetupSqpoll notin queue.params.flags:
     return true
   # Ensure the kernel can see the store to the SQ tail before we read
   # the flags.
@@ -148,13 +156,13 @@ proc sqNeedsEnter(queue: Queue, submit: int, flags: var EnterFlags): bool =
     return true
   return false;
 
-template cqNeedsFlush(queue: Queue): bool =
+template cqNeedsFlush(queue: var Queue): bool =
   {SqCqOverflow, SqTaskrun} <= atomic_load_explicit[SqringFlags](unsafeAddr queue.sq.flags, moRelaxed)
 
-template cqNeedsEnter(queue: Queue): bool =
+template cqNeedsEnter(queue: var Queue): bool =
   SetupIopoll in queue.params.flags or queue.cqNeedsFlush
 
-proc submit*(queue: Queue, waitNr: uint = 0, getEvents: bool = false): int =
+proc submit*(queue: var Queue, waitNr: uint = 0, getEvents: bool = false): int =
   ## Submit sqes acquired from io_uring_get_sqe() to the kernel.
   ## Returns number of sqes submitted
   let
