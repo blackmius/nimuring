@@ -225,13 +225,14 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   let
     startIndex = int(head and queue.cq.mask[])
     endIndex = int(tail and queue.cq.mask[])
+  result = newSeq[Cqe](ready)
   if endIndex < startIndex:
     # overflow needs 2 memcpy
-    let arr = cast[ptr UncheckedArray[Cqe]](queue.cq.cqes)
-    let first = @(arr.toOpenArray(startIndex, queue.cq.entries[].int-1))
-    let second = @(arr.toOpenArray(0, endIndex-1))
-    result = concat(first, second)
+    let
+      startCount = queue.cq.entries[].int - startIndex
+      endIndex = int(tail and queue.cq.mask[])
+    copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
+    copyMem(result[startCount].unsafeAddr, queue.cq.cqes, (endIndex + 1) * sizeof(Cqe))
   else:
-    let arr = cast[ptr UncheckedArray[Cqe]](queue.cq.cqes)
-    result = @(arr.toOpenArray(startIndex, endIndex-1))
+    copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
   atomic_store_explicit(queue.cq.head, tail, moRelease)
