@@ -1,5 +1,4 @@
 import io_uring
-import std/sequtils
 
 from atomics import MemoryOrder
 {.push, header: "<stdatomic.h>", importc.}
@@ -221,16 +220,14 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
     return @[]
   var
     head = queue.cq.head[]
-    tail = head + ready
+    tail = head + ready - 1
   let
     startIndex = int(head and queue.cq.mask[])
     endIndex = int(tail and queue.cq.mask[])
   result = newSeq[Cqe](ready)
   if endIndex < startIndex:
     # overflow needs 2 memcpy
-    let
-      startCount = queue.cq.entries[].int - startIndex
-      endIndex = int(tail and queue.cq.mask[])
+    let startCount = queue.cq.entries[].int - startIndex
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
     copyMem(result[startCount].unsafeAddr, queue.cq.cqes, (endIndex + 1) * sizeof(Cqe))
   else:
