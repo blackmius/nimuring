@@ -1,3 +1,5 @@
+## For more information see https://unixism.net/loti/index.html
+
 import posix, os
 
 type
@@ -102,13 +104,13 @@ type
     OP_LAST ## this goes last, obviously
   
   SqeFlag* {.size: sizeof(uint8).} = enum
-    SQE_FIXED_FILE_BIT
-    SQE_IO_DRAIN_BIT
-    SQE_IO_LINK_BIT
-    SQE_IO_HARDLINK_BIT
-    SQE_ASYNC_BIT
-    SQE_BUFFER_SELECT_BIT
-    SQE_CQE_SKIP_SUCCESS_BIT
+    SQE_FIXED_FILE
+    SQE_IO_DRAIN
+    SQE_IO_LINK
+    SQE_IO_HARDLINK
+    SQE_ASYNC
+    SQE_BUFFER_SELECT
+    SQE_CQE_SKIP_SUCCESS
   SqeFlags* = set[SqeFlag]
 
   FsyncFlag* {.size: sizeof(uint32).} = enum

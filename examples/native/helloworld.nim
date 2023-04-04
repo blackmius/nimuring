@@ -1,4 +1,4 @@
-import native/[io_uring, queue]
+import nimuring
 
 var q = newQueue(64)
 
