@@ -73,6 +73,9 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
   result.ring = ring
   result.dropped = ring + offset.dropped
   result.array = ring + offset.array
+  # Directly map SQ slots to SQEs
+  for i in 0..size:
+    cast[ptr UncheckedArray[uint32]](result.array)[i] = i
   result.sqes = cast[ptr Sqe](OffSqes.uringMap(fd, 0, size, Sqe))
   result.init offset
 
