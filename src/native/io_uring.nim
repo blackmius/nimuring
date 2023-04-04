@@ -225,10 +225,10 @@ type
     userData* {.importc: "user_data".}: uint64 ##  sqe->data submission passed back
     res* {.importc: "res".}: int32 ##  result code for this event
     flags* {.importc: "flags".}: CqeFlags
-    bigCqe* {.importc: "big_cqe".}: ref uint64 ##
-                                               ##  If the ring is initialized with SETUP_CQE32, then this field
-                                               ##  contains 16-bytes of padding, doubling the size of the CQE.
-                                               ##
+    # bigCqe* {.importc: "big_cqe".}: ref uint64 ##
+    #                                            ##  If the ring is initialized with SETUP_CQE32, then this field
+    #                                            ##  contains 16-bytes of padding, doubling the size of the CQE.
+    #                                            ##
   CqeFlag* {.size: sizeof(uint32).} = enum
     CQE_F_BUFFER ## If set, the upper 16 bits are the buffer ID
     CQE_F_MORE ## If set, parent SQE will generate more CQE entries
