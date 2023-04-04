@@ -169,7 +169,7 @@ template cqNeedsFlush(queue: var Queue): bool =
 template cqNeedsEnter(queue: var Queue): bool =
   SetupIopoll in queue.params.flags or queue.cqNeedsFlush
 
-proc submit*(queue: var Queue; waitNr: uint = 0; getEvents: bool = false): int =
+proc submit*(queue: var Queue; waitNr: uint = 0; getEvents: bool = false): int {.discardable.} =
   ## Submit sqes acquired from queue.getSqe() to the kernel.
   ## Returns number of sqes submitted
   let

@@ -23,7 +23,7 @@ proc drainPrevios*(sqe: ptr Sqe) =
   ## and new SQEs will not be started before this one completes. Available since 5.2.
   sqe.flags.incl(SQE_IO_LINK)
 
-proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags): ptr Sqe =
+proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `fsync(2)`.
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   ## For example, for `fdatasync()` you can set `IORING_FSYNC_DATASYNC` in the SQE's `rw_flags`.
@@ -39,7 +39,7 @@ proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags):
   result.fsync_flags = flags
   result.userData = userData
 
-proc nop*(q: var Queue; userData: pointer): ptr Sqe =
+proc nop*(q: var Queue; userData: pointer): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a no-op.
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   ## A no-op is more useful than may appear at first glance.
@@ -50,7 +50,7 @@ proc nop*(q: var Queue; userData: pointer): ptr Sqe =
   result.userData = userData
 
 
-proc prepRw(sqe: ptr Sqe; op: Op; fd: FileHandle; `addr`: pointer; len: int; offset: Off) =
+proc prepRw(sqe: ptr Sqe; op: Op; fd: FileHandle; `addr`: pointer; len: int; offset: int = 0) =
   # utility to fill rw operators
   sqe.opcode = op
   sqe.fd = fd
@@ -58,14 +58,14 @@ proc prepRw(sqe: ptr Sqe; op: Op; fd: FileHandle; `addr`: pointer; len: int; off
   sqe.addr = addr
   sqe.len = len
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; offset: Off): ptr Sqe =
+proc read*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `read(2)`
   ## Reading into a `buffer` uses `read(2)`
   result = q.getSqe()
   result.prepRw(OP_READ, fd, buffer, len, offset)
   result.userData = userData
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: Off): ptr Sqe =
+proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `preadv` depending on the buffer type.
   ## Reading into a `iovecs` uses `preadv(2)`
   ## If you want to do a `preadv2()` then set `rw_flags` on the returned SQE. See https://linux.die.net/man/2/preadv.
@@ -73,7 +73,7 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; 
   result.prepRw(OP_READV, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
   result.userData = userData
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, len: int, offset: Off): ptr Sqe =
+proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, len: int, offset: int = 0): ptr Sqe {.discardable.} =
   ## io_uring will select a buffer that has previously been provided with `provide_buffers`.
   ## The buffer group referenced by `group_id` must contain at least one buffer for the recv call to work.
   ## `len` controls the number of bytes to read into the selected buffer.
@@ -83,7 +83,7 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, le
   result.buf_index = group_id
   result.userData = userData
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: Off; bufferIndex: uint16): ptr Sqe =
+proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_READ_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
@@ -94,14 +94,21 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; 
   result.bufIndex = bufferIndex
   result.userData = userData
 
-proc write*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; offset: Off): ptr Sqe =
+proc write*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `write(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_WRITE, fd, buffer, len, offset)
   result.userData = userData
 
-proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: Off): ptr Sqe =
+proc write*(q: var Queue; userData: pointer; fd: FileHandle; str: string; offset: int = 0): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `write(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_WRITE, fd, str.cstring, len(str), offset)
+  result.userData = userData
+
+proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `pwritev()`.
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   ## For example, if you want to do a `pwritev2()` then set `rw_flags` on the returned SQE.
@@ -110,7 +117,7 @@ proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec];
   result.prepRw(OP_WRITEV, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
   result.userData = userData
 
-proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: Off, bufferIndex: uint16): ptr Sqe =
+proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_WRITE_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
@@ -121,28 +128,28 @@ proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec];
   result.bufIndex = bufferIndex
   result.userData = userData
 
-proc accept*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen, flags: uint16): ptr Sqe =
+proc accept*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen, flags: uint16): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `accept4(2)` on a socket.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_ACCEPT, fd, `addr`.unsafeAddr, 0, addrLen.int)
   result.user_data = user_data;
 
-proc connect*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen): ptr Sqe =
+proc connect*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen): ptr Sqe {.discardable.} =
   ## Queue (but does not submit) an SQE to perform a `connect(2)` on a socket.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_CONNECT, fd, `addr`.unsafeAddr, 0, addrLen.int)
   result.user_data = user_data;
 
-proc epoll_ctl*(q: var Queue; userData: pointer; epfd: FileHandle; fd: FileHandle; op: uint32; ev: ptr EpollEvent): ptr Sqe =
+proc epoll_ctl*(q: var Queue; userData: pointer; epfd: FileHandle; fd: FileHandle; op: uint32; ev: ptr EpollEvent): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `epoll_ctl(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_EPOLL_CTL, epfd, ev, op.int, fd)
   result.user_data = user_data;
 
-proc recv*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe =
+proc recv*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `recv(2)`.
   ## Returns a pointer to the SQE.
   ## io_uring will recv directly into this buffer
@@ -151,7 +158,7 @@ proc recv*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc send*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe =
+proc send*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `send(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
@@ -159,7 +166,7 @@ proc send*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `recvmsg(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
@@ -167,7 +174,7 @@ proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsgh
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc sendmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc sendmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `sendmsg(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
@@ -175,14 +182,14 @@ proc sendmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsgh
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc openat*(q: var Queue; userData: pointer; fd: FileHandle; path: string; mode: Mode): ptr Sqe =
+proc openat*(q: var Queue; userData: pointer; fd: FileHandle; path: string; mode: Mode): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `openat(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_OPENAT, fd, path.cstring, mode.int, 0)
   result.user_data = user_data;
 
-proc close*(q: var Queue; userData: pointer; fd: FileHandle): ptr Sqe =
+proc close*(q: var Queue; userData: pointer; fd: FileHandle): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `close(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
@@ -190,7 +197,7 @@ proc close*(q: var Queue; userData: pointer; fd: FileHandle): ptr Sqe =
   result.fd = fd
   result.user_data = user_data;
 
-proc timeout*(q: var Queue; userData: pointer; ts: Timespec, count: uint32; flags: TimeoutFlags): ptr Sqe =
+proc timeout*(q: var Queue; userData: pointer; ts: Timespec, count: uint32; flags: TimeoutFlags): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to register a timeout operation.
   ## Returns a pointer to the SQE.
   ##
@@ -209,7 +216,7 @@ proc timeout*(q: var Queue; userData: pointer; ts: Timespec, count: uint32; flag
   result.timeoutFlags = flags
   result.user_data = user_data;
 
-proc timeout_remove*(q: var Queue; userData: pointer; timeout_user_data: pointer; flags: TimeoutFlags): ptr Sqe =
+proc timeout_remove*(q: var Queue; userData: pointer; timeout_user_data: pointer; flags: TimeoutFlags): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to remove an existing timeout operation.
   ## Returns a pointer to the SQE.
   ##
@@ -223,7 +230,7 @@ proc timeout_remove*(q: var Queue; userData: pointer; timeout_user_data: pointer
   result.timeoutFlags = flags
   result.user_data = user_data;
 
-proc link_timeout*(q: var Queue; userData: pointer; ts: Timespec; flags: TimeoutFlags): ptr Sqe =
+proc link_timeout*(q: var Queue; userData: pointer; ts: Timespec; flags: TimeoutFlags): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to add a link timeout operation.
   ## Returns a pointer to the SQE.
   ##
@@ -245,7 +252,7 @@ proc link_timeout*(q: var Queue; userData: pointer; ts: Timespec; flags: Timeout
   result.timeoutFlags = flags
   result.user_data = user_data;
 
-proc poll_add*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uint32): ptr Sqe =
+proc poll_add*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `poll(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
