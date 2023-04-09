@@ -81,15 +81,18 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
 
 proc `=destroy`(queue: var Queue) =
   ## tear down the queue
-  uringUnmap(queue.cq.ring, queue.params.cqEntries.int * sizeof(Cqe))
-  uringUnmap(queue.sq.ring, queue.params.sqEntries.int * sizeof(pointer))
-  uringUnmap(queue.sq.sqes, queue.params.sqEntries.int * sizeof(Sqe))
+  if queue.cq.ring != nil:
+    uringUnmap(queue.cq.ring, queue.params.cqEntries.int * sizeof(Cqe))
+  if queue.sq.ring != nil:
+    uringUnmap(queue.sq.ring, queue.params.sqEntries.int * sizeof(pointer))
+  if queue.sq.sqes != nil:
+    uringUnmap(queue.sq.sqes, queue.params.sqEntries.int * sizeof(Sqe))
 
-proc isPowerOfTwo(x: uint32): bool = (x != 0) and ((x and (x - 1)) == 0)
+proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
-proc newQueue*(entries: uint32; flags = defaultFlags; sqThreadCpu = false;
+proc newQueue*(entries: int; flags = defaultFlags; sqThreadCpu = false;
     sqThreadIdle = false): Queue =
-  assert entries.isPowerOfTwo
+  assert entries.isPowerOfTwo, "Entries must be in the power of two"
   var params = cast[ptr Params](allocShared(sizeof Params))
   params.flags = flags
   params.sqThreadCpu = sqThreadCpu.uint32
