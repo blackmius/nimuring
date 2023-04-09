@@ -224,15 +224,16 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
     return @[]
   var
     head = queue.cq.head[]
-    tail = head + ready - 1
+    tail = head + ready
   let
     startIndex = int(head and queue.cq.mask[])
     endIndex = int(tail and queue.cq.mask[])
+    startCount = queue.cq.entries[].int - startIndex
   result = newSeq[Cqe](ready)
-  if endIndex < startIndex:
+  if startCount < ready.int:
     # overflow needs 2 memcpy
-    let startCount = queue.cq.entries[].int - startIndex
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
+    echo endIndex, " ", startIndex
     copyMem(result[startCount].unsafeAddr, queue.cq.cqes, (endIndex + 1) * sizeof(Cqe))
   else:
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
