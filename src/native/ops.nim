@@ -50,12 +50,12 @@ proc nop*(q: var Queue; userData: pointer): ptr Sqe {.discardable.} =
   result.userData = userData
 
 
-proc prepRw(sqe: ptr Sqe; op: Op; fd: FileHandle; `addr`: pointer; len: int; offset: int = 0) =
+proc prepRw(sqe: ptr Sqe; op: Op; fd: FileHandle; `addr`: pointer; len: int; offset: int = 0) {.inline.} =
   # utility to fill rw operators
   sqe.opcode = op
   sqe.fd = fd
   sqe.off = offset
-  sqe.addr = addr
+  sqe.`addr` = `addr`
   sqe.len = len
 
 proc read*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; offset: int = 0): ptr Sqe {.discardable.} =
@@ -182,7 +182,7 @@ proc sendmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsgh
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc openat*(q: var Queue; userData: pointer; fd: FileHandle; path: string; mode: Mode): ptr Sqe {.discardable.} =
+proc openat*(q: var Queue; userData: pointer; fd: FileHandle; path: string; mode: FileMode): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `openat(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
@@ -259,3 +259,114 @@ proc poll_add*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uint3
   result.prepRw(OP_POLL_ADD, fd, nil, 1, 0)
   littleEndian32(addr result.poll32Events, unsafeAddr poll_mask)
   result.user_data = user_data;
+
+proc poll_remove*(q: var Queue; userData: pointer; targetUserData: pointer): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to remove an existing poll operation.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_POLL_REMOVE, -1, target_user_data, 0, 0)
+  result.user_data = user_data
+
+proc poll_update*(q: var Queue; userData: pointer; oldUserData: pointer; newUserData: pointer; poll_mask: uint32, flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to update the user data of an existing poll
+  ## operation. Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_POLL_REMOVE, -1, oldUserData, int flags, cast[int](newUserData))
+  littleEndian32(addr result.poll32Events, unsafeAddr poll_mask)
+  result.user_data = user_data
+
+proc fallocate*(q: var Queue; userData: pointer; fd: FileHandle; mode: FileMode; offset: Off; len: int): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform an `fallocate(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_FALLOCATE, fd, cast[pointer](len), mode.int, offset)
+  result.user_data = user_data
+
+proc statx*(q: var Queue; userData: pointer; fd: FileHandle; path: string; flags: uint32; mask: uint32; buf: ptr Stat): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform an `statx(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_STATX, fd, path.cstring, mask.int, cast[int](buf))
+  result.statxFlags = flags
+  result.user_data = user_data
+
+proc cancel*(q: var Queue; userData: pointer; cancelUserData: pointer; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to remove an existing operation.
+  ## Returns a pointer to the SQE.
+  ##
+  ## The operation is identified by its `user_data`.
+  ##
+  ## The completion event result will be `0` if the operation was found and cancelled successfully,
+  ## `-EALREADY` if the operation was found but was already in progress, or
+  ## `-ENOENT` if the operation was not found.
+  result = q.getSqe()
+  result.prepRw(OP_ASYNC_CANCEL, -1, cancelUserData, 0, 0)
+  result.cancelFlags = flags
+  result.user_data = user_data
+
+proc shutdown*(q: var Queue; userData: pointer; sockfd: FileHandle; how: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `shutdown(2)`.
+  ## Returns a pointer to the SQE.
+  ##
+  ## The operation is identified by its `user_data`.
+  result = q.getSqe()
+  result.prepRw(OP_SHUTDOWN, sockfd, nil, how.int, 0)
+  result.user_data = user_data
+
+proc renameat*(q: var Queue; userData: pointer; oldDirFd: FileHandle; oldPath: string; newDirFd: FileHandle; newPath: string; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `renameat2(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_RENAMEAT, oldDirFd, oldPath.cstring, newDirFd.int, cast[int](newPath.cstring))
+  result.renameFlags = flags
+  result.user_data = user_data
+
+proc unlinkat*(q: var Queue; userData: pointer; dirFd: FileHandle; path: string; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `unlinkat(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_UNLINKAT, dirFd, path.cstring, 0, 0)
+  result.renameFlags = flags
+  result.user_data = user_data
+
+proc mkdirat*(q: var Queue; userData: pointer; dirFd: FileHandle; path: string; mode: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `mkdirat(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_MKDIRAT, dirFd, path.cstring, mode.int, 0)
+  result.user_data = user_data
+
+proc symlinkat*(q: var Queue; userData: pointer; target: string; newDirFd: FileHandle; linkPath: string): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `symlinkat(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_SYMLINKAT, newDirFd, target.cstring, 0, cast[int](linkPath.cstring))
+  result.user_data = user_data
+
+proc linkat*(q: var Queue; userData: pointer; oldDirFd: FileHandle; oldPath: string; newDirFd: FileHandle; newPath: string; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `linkat(2)`.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_LINKAT, oldDirFd, oldPath.cstring, newDirFd.int, cast[int](newPath.cstring))
+  result.hardlinkFlags = flags
+  result.user_data = user_data
+
+proc provide_buffers*(q: var Queue; userData: pointer; buffers: pointer; bufferSize: int; buffersCount: int; groupId: uint; bufferId: uint): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to provide a group of buffers used for commands that read/receive data.
+  ## Returns a pointer to the SQE.
+  ##
+  ## Provided buffers can be used in `read`, `recv` or `recvmsg` commands via .buffer_selection.
+  ##
+  ## The kernel expects a contiguous block of memory of size (buffers_count * buffer_size).
+  result = q.getSqe()
+  result.prepRw(OP_PROVIDE_BUFFERS, cast[FileHandle](buffersCount), buffers, bufferSize, bufferId.int)
+  result.bufIndex = groupId.uint16
+  result.user_data = user_data
+
+proc provide_buffers*(q: var Queue; userData: pointer; buffersCount: int; groupId: uint;): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to remove a group of provided buffers.
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_REMOVE_BUFFERS, cast[FileHandle](buffersCount), nil, 0, 0)
+  result.bufIndex = groupId.uint16
+  result.user_data = user_data
