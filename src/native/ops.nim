@@ -23,7 +23,7 @@ proc drainPrevious*(sqe: ptr Sqe) =
   ## and new SQEs will not be started before this one completes. Available since 5.2.
   sqe.flags.incl(SQE_IO_DRAIN)
 
-proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags): ptr Sqe {.discardable.} =
+proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags = {}): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `fsync(2)`.
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   ## For example, for `fdatasync()` you can set `IORING_FSYNC_DATASYNC` in the SQE's `rw_flags`.
@@ -65,7 +65,7 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len
   result.prepRw(OP_READ, fd, buffer, len, offset)
   result.userData = userData
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
+proc readv*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `preadv` depending on the buffer type.
   ## Reading into a `iovecs` uses `preadv(2)`
   ## If you want to do a `preadv2()` then set `rw_flags` on the returned SQE. See https://linux.die.net/man/2/preadv.
@@ -83,7 +83,7 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, le
   result.buf_index = group_id
   result.userData = userData
 
-proc read*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
+proc readv_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_READ_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
@@ -108,7 +108,7 @@ proc write*(q: var Queue; userData: pointer; fd: FileHandle; str: string; offset
   result.prepRw(OP_WRITE, fd, str.cstring, len(str), offset)
   result.userData = userData
 
-proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
+proc writev*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `pwritev()`.
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   ## For example, if you want to do a `pwritev2()` then set `rw_flags` on the returned SQE.
@@ -117,7 +117,7 @@ proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec];
   result.prepRw(OP_WRITEV, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
   result.userData = userData
 
-proc write*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
+proc writev_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_WRITE_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
