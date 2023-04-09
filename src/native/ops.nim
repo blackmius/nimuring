@@ -18,10 +18,10 @@ proc linkNext*(sqe: ptr Sqe) =
   ## will be terminated and completed with -ECANCELED as the error code. Available since 5.3.
   sqe.flags.incl(SQE_IO_LINK)
 
-proc drainPrevios*(sqe: ptr Sqe) =
+proc drainPrevious*(sqe: ptr Sqe) =
   ## When this flag is specified, the SQE will not be started before previously submitted SQEs have completed,
   ## and new SQEs will not be started before this one completes. Available since 5.2.
-  sqe.flags.incl(SQE_IO_LINK)
+  sqe.flags.incl(SQE_IO_DRAIN)
 
 proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `fsync(2)`.
