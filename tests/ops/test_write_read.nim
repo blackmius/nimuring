@@ -27,9 +27,6 @@ assert cqes[0].res == 10
 assert cqes[1].userData == 2
 assert cqes[1].res == 10
 
-echo writeBuffer
-echo readBuffer
-
 for i in 0..<10:
     assert writeBuffer[i] == readBuffer[i]
 

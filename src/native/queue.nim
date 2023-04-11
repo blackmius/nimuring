@@ -240,7 +240,7 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   atomic_store_explicit(queue.cq.head, tail, moRelease)
 
 
-proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int =
+proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int {.discardable.} =
   ## Registers an array of file descriptors.
   ## Every time a file descriptor is put in an SQE and submitted to the kernel, the kernel must
   ## retrieve a reference to the file, and once I/O has completed the file reference must be
@@ -253,7 +253,7 @@ proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int =
   ## An application need unregister only if it wants to register a new array of file descriptors.
   return register(q.fd.cint, REGISTER_FILES.cint, fds[0].unsafeAddr, fds.len.cint)
 
-proc registerFilesUpdate*(q: var Queue; offset: Off; fds: seq[FileHandle]): int =
+proc registerFilesUpdate*(q: var Queue; offset: Off; fds: seq[FileHandle]): int {.discardable.} =
   ## Updates registered file descriptors.
   ##
   ## Updates are applied starting at the provided offset in the original file descriptors slice.
@@ -268,31 +268,31 @@ proc registerFilesUpdate*(q: var Queue; offset: Off; fds: seq[FileHandle]): int 
   )
   return register(q.fd.cint, REGISTER_FILES_UPDATE.cint, update.unsafeAddr, fds.len.cint)
 
-proc unregisterFiles*(q: var Queue;): int =
-  ## Unregister the registered eventfd file descriptor.
+proc unregisterFiles*(q: var Queue;): int {.discardable.} =
+  ## Unregisters all registered file descriptors previously associated with the ring.
   return register(q.fd.cint, UNREGISTER_FILES.cint, nil, 0)
 
-proc registerEventFd*(q: var Queue; fd: FileHandle): int =
+proc registerEventFd*(q: var Queue; fd: FileHandle): int {.discardable.} =
   ## Registers the file descriptor for an eventfd that will be notified of completion events on
   ##  an io_uring instance.
   ## Only a single a eventfd can be registered at any given point in time.
   return register(q.fd.cint, REGISTER_EVENTFD.cint, fd.unsafeAddr, 1)
 
-proc registerEventFdAsync*(q: var Queue; fd: FileHandle): int =
+proc registerEventFdAsync*(q: var Queue; fd: FileHandle): int {.discardable.} =
   ## Registers the file descriptor for an eventfd that will be notified of completion events on
   ## an io_uring instance. Notifications are only posted for events that complete in an async manner.
   ## This means that events that complete inline while being submitted do not trigger a notification event.
   ## Only a single eventfd can be registered at any given point in time.
   return register(q.fd.cint, REGISTER_EVENTFD_ASYNC.cint, fd.unsafeAddr, 1)
 
-proc unregisterEventFd*(q: var Queue;): int =
+proc unregisterEventFd*(q: var Queue;): int {.discardable.} =
   ## Unregister the registered eventfd file descriptor.
   return register(q.fd.cint, UNREGISTER_EVENTFD.cint, nil, 0)
 
-proc registerBuffers*(q: var Queue; buffers: seq[IOVec]): int =
-  ## Unregister the registered eventfd file descriptor.
+proc registerBuffers*(q: var Queue; buffers: seq[IOVec]): int {.discardable.} =
+  ## Registers an array of buffers for use with `read_fixed` and `write_fixed`.
   return register(q.fd.cint, REGISTER_BUFFERS.cint, buffers[0].unsafeAddr, buffers.len.cint)
 
-proc unregisterBuffers*(q: var Queue;): int =
-  ## Unregister the registered eventfd file descriptor.
+proc unregisterBuffers*(q: var Queue;): int {.discardable.} =
+  ## Unregister the registered buffers.
   return register(q.fd.cint, UNREGISTER_BUFFERS.cint, nil, 0)

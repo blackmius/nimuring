@@ -1,3 +1,11 @@
+## utility functions for sending commands to io_uring
+## .. warning::
+##   After filling in SQ, queue.get Sql starts returning nil,
+##   and since the following functions are trying to create SQL for you,
+##   they may try to write on the nil pointer and fail with an out-of-memory error
+##
+##   So for safety check, use `queue.sqReady < queue.params.sqEntries` before calling an op
+
 import io_uring
 import queue
 import posix
@@ -83,7 +91,7 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, le
   result.buf_index = group_id
   result.userData = userData
 
-proc readv_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
+proc readv_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0; bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_READ_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
@@ -117,7 +125,7 @@ proc writev*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]
   result.prepRw(OP_WRITEV, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
   result.userData = userData
 
-proc writev_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; bufferIndex: uint16; offset: int = 0): ptr Sqe {.discardable.} =
+proc writev_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0, bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_WRITE_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
