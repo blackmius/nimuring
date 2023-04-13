@@ -1,7 +1,7 @@
 ## utility functions for sending commands to io_uring
 ## .. warning::
 ##   After filling in SQ, queue.get Sql starts returning nil,
-##   and since the following functions are trying to create SQL for you,
+##   and since the following functions are trying to create SQE for you,
 ##   they may try to write on the nil pointer and fail with an out-of-memory error
 ##
 ##   So for safety check, use `queue.sqReady < queue.params.sqEntries` before calling an op
@@ -143,6 +143,13 @@ proc accept*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, 
   result.prepRw(OP_ACCEPT, fd, `addr`.unsafeAddr, 0, addrLen.int)
   result.user_data = user_data;
 
+proc accept_multishot*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen, flags: uint16): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform an `accept4(2)` on a socket.
+  ## Accept multiple new connections on a socket.
+  ## Returns a pointer to the SQE.
+  result = q.accept(userData, fd, `addr`, addrLen, flags)
+  result.ioprio.incl(RECVSEND_POLL_FIRST)
+
 proc connect*(q: var Queue; userData: pointer; fd: FileHandle, `addr`: SockAddr, addrLen: SockLen): ptr Sqe {.discardable.} =
   ## Queue (but does not submit) an SQE to perform a `connect(2)` on a socket.
   ## Returns a pointer to the SQE.
@@ -166,12 +173,30 @@ proc recv*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len
   result.msgFlags = flags
   result.user_data = user_data;
 
+proc recv_multishot*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `recv(2)`.
+  ## Returns a pointer to the SQE.
+  ## Receive multiple messages from a socket
+  ## io_uring will recv directly into this buffer
+  result = q.recv(userData, fd, buffer, len, flags)
+  result.ioprio.incl(RECV_MULTISHOT)
+
 proc send*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `send(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_SEND, fd, buffer, len, 0)
   result.msgFlags = flags
+  result.user_data = user_data;
+
+proc send_zc*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; len: int; flags: uint32; zc_flags: uint; buf_index: uint): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `sendzc(2)`.
+  ## zerocopy send request
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_SENDZC, fd, buffer, len, 0)
+  result.msgFlags = flags
+  result.ioprio = zc_flags
   result.user_data = user_data;
 
 proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
@@ -182,11 +207,27 @@ proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsgh
   result.msgFlags = flags
   result.user_data = user_data;
 
+proc recvmsg_multishot*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `recvmsg(2)`.
+  ## Receive multiple messages on a socket,
+  ## Returns a pointer to the SQE.
+  result = q.recvmsg(userData, fd, msghdr, flags)
+  result.ioprio.incl(RECV_MULTISHOT)
+
 proc sendmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `sendmsg(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
   result.prepRw(OP_SENDMSG, fd, msghdr, 1, 0)
+  result.msgFlags = flags
+  result.user_data = user_data;
+
+proc sendmsg_zc*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `sendmsg(2)`.
+  ## zerocopy
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_SENDMSG_ZC, fd, msghdr, 1, 0)
   result.msgFlags = flags
   result.user_data = user_data;
 
@@ -267,6 +308,13 @@ proc poll_add*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uint3
   result.prepRw(OP_POLL_ADD, fd, nil, 1, 0)
   littleEndian32(addr result.poll32Events, unsafeAddr poll_mask)
   result.user_data = user_data;
+
+proc poll_multi*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uint32): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to perform a `poll(2)`.
+  ## Revieve multiple poll
+  ## Returns a pointer to the SQE.
+  result = q.poll_add(userData, fd, poll_mask)
+  result.len = cast[uint](PollFlags({POLL_ADD_MULTI}))
 
 proc poll_remove*(q: var Queue; userData: pointer; targetUserData: pointer): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to remove an existing poll operation.

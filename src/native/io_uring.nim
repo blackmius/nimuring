@@ -1,4 +1,6 @@
 ## For more information see https://unixism.net/loti/index.html
+## https://man7.org/linux/man-pages/man7/io_uring.7.html
+## https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023
 
 import posix, os
 
@@ -369,17 +371,20 @@ var
   SYS_io_uring_register {.importc, header: "<sys/syscall.h>".}: cint
 
 proc setup*(entries: cint, params: ptr Params): FileHandle =
+  ## https://man7.org/linux/man-pages/man2/io_uring_setup.2.html
   result = syscall(SYS_io_uring_setup, entries, params)
   if result < 0:
     raiseOSError osLastError()
 
 proc enter*(fd: cint, toSubmit: cint, minComplete: cint,
                          flags: cint, sig: ref Sigset, sz: cint): cint =
+  ## https://man7.org/linux/man-pages/man2/io_uring_enter.2.html
   result = syscall(SYS_io_uring_enter, fd, toSubmit, minComplete, flags, sig, sz)
   if result < 0:
     raiseOSError osLastError()
 
 proc register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint =
+  ## https://man7.org/linux/man-pages/man2/io_uring_register.2.html
   result = syscall(SYS_io_uring_register, fd, op, arg, nr_args)
   if result < 0:
     raiseOSError osLastError()
