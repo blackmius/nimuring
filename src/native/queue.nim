@@ -233,7 +233,6 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   if startCount < ready.int:
     # overflow needs 2 memcpy
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
-    echo endIndex, " ", startIndex
     copyMem(result[startCount].unsafeAddr, queue.cq.cqes, (endIndex + 1) * sizeof(Cqe))
   else:
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
