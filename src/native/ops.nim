@@ -196,7 +196,7 @@ proc send_zc*(q: var Queue; userData: pointer; fd: FileHandle; buffer: pointer; 
   result = q.getSqe()
   result.prepRw(OP_SENDZC, fd, buffer, len, 0)
   result.msgFlags = flags
-  result.ioprio = zc_flags
+  result.ioprio = cast[IoprioFlags](zc_flags)
   result.user_data = user_data;
 
 proc recvmsg*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe {.discardable.} =
@@ -314,7 +314,7 @@ proc poll_multi*(q: var Queue; userData: pointer; fd: FileHandle; poll_mask: uin
   ## Revieve multiple poll
   ## Returns a pointer to the SQE.
   result = q.poll_add(userData, fd, poll_mask)
-  result.len = cast[uint](PollFlags({POLL_ADD_MULTI}))
+  result.len = cast[int](PollFlags({POLL_ADD_MULTI}))
 
 proc poll_remove*(q: var Queue; userData: pointer; targetUserData: pointer): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to remove an existing poll operation.
