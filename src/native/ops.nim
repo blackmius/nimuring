@@ -91,14 +91,14 @@ proc read*(q: var Queue; userData: pointer; fd: FileHandle; group_id: uint16, le
   result.buf_index = group_id
   result.userData = userData
 
-proc readv_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0; bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
+proc readv_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovec: IOVec; offset: int = 0; bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_READ_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
   ##
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   result = q.getSqe()
-  result.prepRw(OP_READ_FIXED, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
+  result.prepRw(OP_READ_FIXED, fd, iovec.iov_base, iovec.iov_len.int, offset)
   result.bufIndex = bufferIndex
   result.userData = userData
 
@@ -125,14 +125,14 @@ proc writev*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]
   result.prepRw(OP_WRITEV, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
   result.userData = userData
 
-proc writev_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0, bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
+proc writev_fixed*(q: var Queue; userData: pointer; fd: FileHandle; iovec: IOVec, offset: int = 0, bufferIndex: uint16 = 0): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a IORING_OP_WRITE_FIXED.
   ## The `buffer` provided must be registered with the kernel by calling `register_buffers` first.
   ## The `buffer_index` must be the same as its index in the array provided to `register_buffers`.
   ##
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   result = q.getSqe()
-  result.prepRw(OP_WRITE_FIXED, fd, iovecs[0].unsafeAddr, len(iovecs), offset)
+  result.prepRw(OP_WRITE_FIXED, fd, iovec.iov_base, iovec.iov_len.int, offset)
   result.bufIndex = bufferIndex
   result.userData = userData
 

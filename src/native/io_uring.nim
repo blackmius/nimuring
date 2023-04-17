@@ -385,7 +385,7 @@ proc enter*(fd: cint, toSubmit: cint, minComplete: cint,
 
 proc register*(fd: cint, op: cint, arg: pointer, nr_args: cint): cint =
   ## https://man7.org/linux/man-pages/man2/io_uring_register.2.html
-  result = syscall(SYS_io_uring_register, fd, op, arg, nr_args)
+  result = syscall(SYS_io_uring_register, fd, op, arg, nr_args, 0, 0)
   if result < 0:
     raiseOSError osLastError()
 

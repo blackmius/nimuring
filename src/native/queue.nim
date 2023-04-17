@@ -290,6 +290,11 @@ proc unregisterEventFd*(q: var Queue;): int {.discardable.} =
 
 proc registerBuffers*(q: var Queue; buffers: seq[IOVec]): int {.discardable.} =
   ## Registers an array of buffers for use with `read_fixed` and `write_fixed`.
+  ## known issues:
+  ## * EOPNOTSUPP
+  ##   User buffers point to file-backed memory.
+  ##   error occured then you try to pass pointer allocated on stack
+  ##   use alloc or alloc0
   return register(q.fd.cint, REGISTER_BUFFERS.cint, buffers[0].unsafeAddr, buffers.len.cint)
 
 proc unregisterBuffers*(q: var Queue;): int {.discardable.} =
