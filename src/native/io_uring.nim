@@ -9,7 +9,7 @@ type
 
 type
   ## IO submission data structure (Submission Queue Entry)
-  Sqe* {.importc: "struct io_uring_sqe", header: "<linux/io_uring.h>", bycopy.} = object
+  Sqe* {.importc: "struct io_uring_sqe", header: "<liburing/io_uring.h>", bycopy.} = object
     opcode* {.importc: "opcode".}: Op ##  type of operation for this sqe
     flags* {.importc: "flags".}: SqeFlags
     ioprio* {.importc: "ioprio".}: IoprioFlags ##  ioprio for the request
@@ -225,7 +225,7 @@ const ACCEPT_MULTISHOT* = 1u shl 0
 
 type
   ## IO completion data structure (Completion Queue Entry)
-  Cqe* {.importc: "struct io_uring_cqe", header: "<linux/io_uring.h>", bycopy.} = object
+  Cqe* {.importc: "struct io_uring_cqe", header: "<liburing/io_uring.h>", bycopy.} = object
     userData* {.importc: "user_data".}: uint64 ##  sqe->data submission passed back
     res* {.importc: "res".}: int32 ##  result code for this event
     flags* {.importc: "flags".}: CqeFlags
@@ -245,7 +245,7 @@ type
 const CQE_BUFFER_SHIFT* = 16
 
 type
-  Params* {.importc: "struct io_uring_params", header: "<linux/io_uring.h>", bycopy.} = object
+  Params* {.importc: "struct io_uring_params", header: "<liburing/io_uring.h>", bycopy.} = object
     sqEntries* {.importc: "sq_entries".}: uint32
     cqEntries* {.importc: "cq_entries".}: uint32
     flags* {.importc: "flags".}: SetupFlags
@@ -299,7 +299,7 @@ type
   Features* = set[Feature]
 
   ## Filled with the offset for mmap(2)
-  SqringOffsets* {.importc: "struct io_sqring_offsets", header: "<linux/io_uring.h>", bycopy.} = object
+  SqringOffsets* {.importc: "struct io_sqring_offsets", header: "<liburing/io_uring.h>", bycopy.} = object
     head* {.importc: "head".}: uint32
     tail* {.importc: "tail".}: uint32
     ringMask* {.importc: "ring_mask".}: uint32
@@ -314,7 +314,7 @@ type
     SQ_TASKRUN ## task should enter the kernel
   SqringFlags* = set[SqringFlag]
 
-  CqringOffsets* {.importc: "struct io_cqring_offsets", header: "<linux/io_uring.h>", bycopy.} = object
+  CqringOffsets* {.importc: "struct io_cqring_offsets", header: "<liburing/io_uring.h>", bycopy.} = object
     head* {.importc: "head".}: uint32
     tail* {.importc: "tail".}: uint32
     ringMask* {.importc: "ring_mask".}: uint32
@@ -434,7 +434,7 @@ const
 const RSRC_REGISTER_SPARSE* = 1u shl 0
 
 type
-  RsrcRegister* {.importc: "struct io_uring_rsrc_register", header: "<linux/io_uring.h>",
+  RsrcRegister* {.importc: "struct io_uring_rsrc_register", header: "<liburing/io_uring.h>",
                         bycopy.} = object
     nr* {.importc: "nr".}: uint32
     flags* {.importc: "flags".}: uint32
@@ -442,12 +442,12 @@ type
     data* {.importc: "data", align: 64.}: uint64
     tags* {.importc: "tags", align: 64.}: uint64
 
-  RsrcUpdate* {.importc: "struct io_uring_rsrc_update", header: "<linux/io_uring.h>", bycopy.} = object
+  RsrcUpdate* {.importc: "struct io_uring_rsrc_update", header: "<liburing/io_uring.h>", bycopy.} = object
     offset* {.importc: "offset".}: uint32
     resv* {.importc: "resv".}: uint32
     data* {.importc: "data", align: 64.}: uint64
 
-  RsrcUpdate2* {.importc: "struct io_uring_rsrc_update2", header: "<linux/io_uring.h>",
+  RsrcUpdate2* {.importc: "struct io_uring_rsrc_update2", header: "<liburing/io_uring.h>",
                        bycopy.} = object
     offset* {.importc: "offset".}: uint32
     resv* {.importc: "resv".}: uint32
@@ -457,12 +457,12 @@ type
     resv2* {.importc: "resv2".}: uint32
 
   NotificationSlot* {.importc: "struct io_uring_notification_slot",
-                            header: "<linux/io_uring.h>", bycopy.} = object
+                            header: "<liburing/io_uring.h>", bycopy.} = object
     tag* {.importc: "tag".}: uint64
     resv* {.importc: "resv".}: array[3, uint64]
 
   NotificationRegister* {.importc: "struct io_uring_notification_register",
-                                header: "<linux/io_uring.h>", bycopy.} = object
+                                header: "<liburing/io_uring.h>", bycopy.} = object
     nrSlots* {.importc: "nr_slots".}: uint32
     resv* {.importc: "resv".}: uint32
     resv2* {.importc: "resv2".}: uint64
@@ -476,20 +476,20 @@ const REGISTER_FILES_SKIP* = -2
 const OP_SUPPORTED* = 1u shl 0
 
 type
-  ProbeOp* {.importc: "struct io_uring_probe_op", header: "<linux/io_uring.h>", bycopy.} = object
+  ProbeOp* {.importc: "struct io_uring_probe_op", header: "<liburing/io_uring.h>", bycopy.} = object
     op* {.importc: "op".}: uint8
     resv* {.importc: "resv".}: uint8
     flags* {.importc: "flags".}: uint16 ##  IO_URING_OP_* flags
     resv2* {.importc: "resv2".}: uint32
 
-  Probe* {.importc: "struct io_uring_probe", header: "<linux/io_uring.h>", bycopy.} = object
+  Probe* {.importc: "struct io_uring_probe", header: "<liburing/io_uring.h>", bycopy.} = object
     lastOp* {.importc: "last_op".}: uint8 ##  last opcode supported
     opsLen* {.importc: "ops_len".}: uint8 ##  length of ops[] array below
     resv* {.importc: "resv".}: uint16
     resv2* {.importc: "resv2".}: array[3, uint32]
     ops* {.importc: "ops".}: ref ProbeOp
 
-  Restriction* {.importc: "struct io_uring_restriction", header: "<linux/io_uring.h>", bycopy.} = object
+  Restriction* {.importc: "struct io_uring_restriction", header: "<liburing/io_uring.h>", bycopy.} = object
     opcode* {.importc: "opcode".}: RestrictionOp
     registerOp* {.importc: "register_op".}: uint8 ##  IORING_RESTRICTION_REGISTER_OP
     sqeOp* {.importc: "sqe_op".}: uint8 ##  IORING_RESTRICTION_SQE_OP
@@ -505,13 +505,13 @@ type
     RESTRICTION_SQE_FLAGS_REQUIRED ## Require sqe flags (these flags must be set on each submission)
     RESTRICTION_LAST
 
-  Buf* {.importc: "struct io_uring_buf", header: "<linux/io_uring.h>", bycopy.} = object
+  Buf* {.importc: "struct io_uring_buf", header: "<liburing/io_uring.h>", bycopy.} = object
     `addr`* {.importc: "addr".}: uint64
     len* {.importc: "len".}: uint32
     bid* {.importc: "bid".}: uint16
     resv* {.importc: "resv".}: uint16
 
-  BufRing* {.importc: "struct io_uring_buf_ring", header: "<linux/io_uring.h>", bycopy.} = object
+  BufRing* {.importc: "struct io_uring_buf_ring", header: "<liburing/io_uring.h>", bycopy.} = object
     resv1* {.importc: "resv1".}: uint64
     resv2* {.importc: "resv2".}: uint32
     resv3* {.importc: "resv3".}: uint16
@@ -520,7 +520,7 @@ type
 
 
 type
-  BufReg* {.importc: "struct io_uring_buf_reg", header: "<linux/io_uring.h>", bycopy.} = object ##  argument for IORING_(UN)REGISTER_PBUF_RING
+  BufReg* {.importc: "struct io_uring_buf_reg", header: "<liburing/io_uring.h>", bycopy.} = object ##  argument for IORING_(UN)REGISTER_PBUF_RING
     ringAddr* {.importc: "ring_addr".}: uint64
     ringEntries* {.importc: "ring_entries".}: uint32
     bgid* {.importc: "bgid".}: uint16
@@ -528,7 +528,7 @@ type
     resv* {.importc: "resv".}: array[3, uint64]
 
 type
-  GeteventsArg* {.importc: "struct io_uring_getevents_arg", header: "<linux/io_uring.h>",
+  GeteventsArg* {.importc: "struct io_uring_getevents_arg", header: "<liburing/io_uring.h>",
                         bycopy.} = object
     sigmask* {.importc: "sigmask".}: uint64
     sigmaskSz* {.importc: "sigmask_sz".}: uint32
@@ -538,7 +538,7 @@ type
 
 type
   SyncCancelReg* {.importc: "struct io_uring_sync_cancel_reg",
-                         header: "<linux/io_uring.h>", bycopy.} = object ##
+                         header: "<liburing/io_uring.h>", bycopy.} = object ##
                                                             ##  Argument for
                                                             ## IORING_REGISTER_SYNC_CANCEL
                                                             ##
@@ -551,7 +551,7 @@ type
 
 type
   FileIndexRange* {.importc: "struct io_uring_file_index_range",
-                          header: "<linux/io_uring.h>", bycopy.} = object ##
+                          header: "<liburing/io_uring.h>", bycopy.} = object ##
                                                              ##  Argument for
                                                              ## IORING_REGISTER_FILE_ALLOC_RANGE
                                                              ##  The range is specified as [off, off + len)
@@ -560,7 +560,7 @@ type
     len* {.importc: "len".}: uint32
     resv* {.importc: "resv".}: uint64
 
-  RecvmsgOut* {.importc: "struct io_uring_recvmsg_out", header: "<linux/io_uring.h>", bycopy.} = object
+  RecvmsgOut* {.importc: "struct io_uring_recvmsg_out", header: "<liburing/io_uring.h>", bycopy.} = object
     namelen* {.importc: "namelen".}: uint32
     controllen* {.importc: "controllen".}: uint32
     payloadlen* {.importc: "payloadlen".}: uint32

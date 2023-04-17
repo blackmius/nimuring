@@ -12,6 +12,13 @@ import posix
 import epoll
 import std/endians
 
+type SqePointer = ref Sqe or ptr Sqe
+
+proc setUserData*[T: SqePointer](sqe: T, userData: pointer | int): T =
+  sqe.userData = cast[pointer](userData)
+  return sqe
+
+
 proc linkNext*(sqe: ptr Sqe) =
   ## When this flag is specified, it forms a link with the next SQE in the submission ring.
   ## That next SQE will not be started before this one completes.
@@ -231,12 +238,27 @@ proc sendmsg_zc*(q: var Queue; userData: pointer; fd: FileHandle; msghdr: ptr Tm
   result.msgFlags = flags
   result.user_data = user_data;
 
-proc openat*(q: var Queue; userData: pointer; fd: FileHandle; path: string; mode: FileMode): ptr Sqe {.discardable.} =
+proc openat*(q: var Queue; userData: pointer; dfd: FileHandle; path: string; flags: uint32; mode: FileMode): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform an `openat(2)`.
   ## Returns a pointer to the SQE.
   result = q.getSqe()
-  result.prepRw(OP_OPENAT, fd, path.cstring, mode.int, 0)
+  result.prepRw(OP_OPENAT, dfd, path.cstring, mode.int, 0)
+  result.openFlags = flags
   result.user_data = user_data;
+
+# TODO: find struct open_how
+# https://man7.org/linux/man-pages/man2/openat2.2.html
+# теперь я понимаю что значит "курить ман"
+# type OpenHow = object
+#   flags: uint64  ## O_* flags
+#   mode: FileMode
+#   resolve: uint64 ## RESOLVE_* flags
+# proc openat2*(q: var Queue; userData: pointer; dfd: FileHandle; path: string; how: OpenHow): ptr Sqe {.discardable.} =
+#   ## Queues (but does not submit) an SQE to perform an `openat2(2)`.
+#   ## Returns a pointer to the SQE.
+#   result = q.getSqe()
+#   result.prepRw(OP_OPENAT2, dfd, path.cstring, mode.int, 0)
+#   result.user_data = user_data;
 
 proc close*(q: var Queue; userData: pointer; fd: FileHandle): ptr Sqe {.discardable.} =
   ## Queues (but does not submit) an SQE to perform a `close(2)`.
@@ -425,4 +447,13 @@ proc provide_buffers*(q: var Queue; userData: pointer; buffersCount: int; groupI
   result = q.getSqe()
   result.prepRw(OP_REMOVE_BUFFERS, cast[FileHandle](buffersCount), nil, 0, 0)
   result.bufIndex = groupId.uint16
+  result.user_data = user_data
+
+proc sync_file_range*(q: var Queue; userData: pointer; fd: FileHandle; len: int; flags: uint32; offset: Off = 0): ptr Sqe {.discardable.} =
+  ## Queues (but does not submit) an SQE to sync_file_range
+  ## whatever it means
+  ## Returns a pointer to the SQE.
+  result = q.getSqe()
+  result.prepRw(OP_SYNC_FILE_RANGE, fd, nil, len, offset)
+  result.sync_range_flags = flags
   result.user_data = user_data

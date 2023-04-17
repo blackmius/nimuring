@@ -1,18 +1,52 @@
 # nimlang io_uring (nimuring)
 
+this library base on liburing as source of truth about io_uring.
+therefore, it is necessary to install the `liburing-dev`
+
+Then a few words about the library itself:
 This library consists of two parts.
 initially, liburing and all its methods were migrated without modification.
-And secondly, this is the native implementation of the io_uring queue, because the extra dependence on liburing seemed too much
+And secondly, this is the native implementation of the io_uring queue
+to better fit into the style of the nim
 
-the native implementation is based on the implementation of the same functionality in zig
-mostly comments fair enough to nim and just copied https://github.com/ziglang/zig/blob/master/lib/std/os/linux/io_uring.zig
 
-# using liburing
+# using pure liburing
 
-there is a define to enable liburing bindings `nimuringUseLiburing`
+to use clean liburing bindings `import nimuring/liburing`
 
-``` bash
-nim compile -d:nimuringUseLiburing program.nim
-```
+# TODO
 
-maybe it would better to move liburing wrapper in separate library, because i am not very excited to support it
+[] Queue
+  [+] passing flags and read internal state
+  [] features
+    [] IO_SQPOLL
+    [] IO_WQ (multithreading)
+    [] FEAT_SINGLE_MMAP
+  [+] Sqe batching
+  [+] getting a CQEs in a convenient form (batching)
+
+[] OPS
+  [] SQE Builder
+    something similar to what was done in rust
+    https://docs.rs/io-uring/latest/io_uring/squeue/struct.Entry.html
+  [+] a simple naive way to fill the queue, as it is done in zig
+    https://github.com/ziglang/zig/blob/master/lib/std/os/linux/io_uring.zig
+  [] Extended queue
+    To avoid SQ overflow, it would be nice to come up with something like an additional dynamic queue on top of io_uring itself
+  [] Multishot ops
+  [] zerocopy send/recv
+
+[] Register
+  [+] buffers
+  [] files
+  [] eventd
+
+[] documentation
+  compare the resulting wrappers with the great documentation
+  https://unixism.net/loti/ref-liburing/submission.html
+
+[] Nim asyncdispatch integration
+  so far, there are not even any ideas how this could be done.
+  On the first reading of its sources, I did not find a place,
+  such as in libuv.prepare, which is executed every tick of the cycle
+
