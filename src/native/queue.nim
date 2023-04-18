@@ -150,6 +150,9 @@ proc getSqe*(queue: var Queue): ptr Sqe =
   if next - head <= sq.entries[]:
     let index = (sq.sqe_tail and sq.mask[]) shl shift
     result = cast[ptr Sqe](sq.sqes + index.int * sizeof(Sqe))
+    # after the overflow, the SQE queues may already be filled,
+    # in order to avoid errors, it is better to reset
+    result[].reset()
     queue.sq.sqe_tail = next
 
 proc sqNeedsEnter(queue: var Queue; submit: int; flags: var EnterFlags): bool =
