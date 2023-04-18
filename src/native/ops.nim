@@ -229,6 +229,66 @@ proc sync_file_range*(sqe: SqePointer; fd: FileHandle; len: int; flags: uint32; 
   sqe.sync_range_flags = flags
   sqe.prepRw(OP_SYNC_FILE_RANGE, fd, nil, len, offset)
 
+proc files_update*(sqe: SqePointer, fds: seq[FileHandle], offset: int = 0): SqePointer =
+  sqe.prepRw(OP_FILES_UPDATE, -1, cast[pointer](fds[0].unsafeAddr), fds.len, offset)
+
+proc fadvice*(sqe: SqePointer, fd: FileHandle, len: int, advice: int, offset: int = 0): SqePointer =
+  sqe.fadvice_advice = advice
+  sqe.prepRw(OP_FADVISE, fd, nil, len, offset)
+
+proc madvice*(sqe: SqePointer; `addr`: pointer; len: int; advice: int): SqePointer =
+  sqe.fadvice_advice = advice
+  sqe.prepRw(OP_MADVISE, -1, `addr`, len, 0)
+
+proc splice*(sqe: SqePointer; fd_in: FileHandle; off_in: int; fd_out: FileHandle; off_out: int; len: int; flags: int = 0, fixed: bool = false): SqePointer =
+  sqe.opcode = OP_SPLICE
+  sqe.fd = fd_out
+  sqe.len = len
+  sqe.off = off_out
+  sqe.splice_fd_in = fd_in
+  sqe.splice_off_in = off_in
+  if fixed:
+    flags = flags or SPLICE_F_FD_IN_FIXED
+  sqe.splice_flags = flags
+  return sqe
+
+proc tee*(sqe: SqePointer, fd_in: FileHandle, fd_out: FileHandle; len: int; flags: int = 0, fixed: bool = false): SqePointer =
+  sqe.opcode = OP_TEE
+  sqe.fd = fd_out
+  sqe.len = len
+  sqe.splice_fd_in = fd_in
+  if fixed:
+    flags = flags or SPLICE_F_FD_IN_FIXED
+  sqe.splice_flags = flags
+  return sqe
+
+proc msg_ring*(sqe: SqePointer; ring_fd: FileHandle; res: int; user_data: uint64; user_flags: uint32 = 0; opcode_flags: uint32 = 0): SqePointer =
+  sqe.msg_ring_flags = opcode_flags
+  sqe.prepRw(OP_MSG_RING, ring_fd, MSG_DATA, res, user_data)
+
+proc fsetxattr*(sqe: SqePointer; fd: FileHandle; name: string; value: string; flags: int = 0): SqePointer =
+  sqe.xattr_flags = flags
+  # TODO: which len?
+  sqe.prepRw(OP_FSETXATTR, fd, cast[pointer](name.cstring), name.len, cast[pointer](value.cstring))
+
+proc setxattr*(sqe: SqePointer, name: string; value: string; path: string; flags: int = 0): SqePointer =
+  sqe.xattr_flags = flags
+  sqe.addr3 = cast[pointer](path.cstring)
+  sqe.prepRw(OP_SETXATTR, 0, cast[pointer](name.cstring), name.len, cast[pointer](value.cstring))
+
+proc fgetxattr*(sqe: SqePointer; fd: FileHandle; name: string; buf: pointer; len: int): SqePointer =
+  sqe.prepRw(OP_FGETXATTR, fd, cast[pointer](name.cstring), len, buf)
+
+proc getxattr*(sqe: SqePointer; name: string; buf: pointer; len: int; path: string;): SqePointer =
+  sqe.addr3 = cast[pointer](path.cstring)
+  sqe.prepRw(OP_GETXATTR, 0, cast[pointer](name.cstring), len, buf)
+
+proc socket*(sqe: SqePointer; domain: int; `type`: int; protocol: int; flags: int = 0): SqePointer =
+  sqe.rw_flags = flags
+  sqe.prepRw(OP_SOCKET, domain, nil, protocol, `type`)
+
+  # TODO: direct
+
 ## Queue new SQE methods
 
 proc fsync*(q: var Queue; userData: pointer; fd: FileHandle; flags: FsyncFlags = {}): ptr Sqe =
