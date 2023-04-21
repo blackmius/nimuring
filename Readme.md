@@ -35,6 +35,7 @@ to use clean liburing bindings `import nimuring/liburing`
     To avoid SQ overflow, it would be nice to come up with something like an additional dynamic queue on top of io_uring itself
   - [ ] Multishot ops
   - [ ] zerocopy send/recv
+  - [ ] accept/connect/send/recv compatability with net module
 
 - [ ] Register
   - [x] buffers
