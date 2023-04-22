@@ -1,0 +1,21 @@
+name: Nim CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-latest:
+    runs-on: ubuntu-latest
+    container:
+      image: nimlang/nim
+    steps:
+    - uses: actions/checkout@v2
+    - name: Update nimble
+      run: nimble update
+    - name: Build INim
+      run: nimble build
+    - name: Run tests
+      run: nimble test -d:prompt_no_history
