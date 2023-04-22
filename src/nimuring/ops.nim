@@ -54,23 +54,23 @@ proc nop*(sqe: SqePointer): SqePointer =
 proc prepRw(sqe: SqePointer, op: Op; fd: FileHandle | SocketHandle; `addr`: pointer | SomeNumber; len: SomeNumber; offset: pointer | SomeNumber): SqePointer =
   sqe.opcode = op
   sqe.fd = cast[FileHandle](fd)
-  sqe.off = cast[Off](offset)
-  sqe.`addr` = cast[pointer](`addr`)
-  sqe.len = cast[int](len)
+  sqe.off.off = cast[Off](offset)
+  sqe.`addr`.`addr` = cast[pointer](`addr`)
+  sqe.len = cast[int32](len)
   return sqe
 
 
 proc fsync*(sqe: SqePointer; fd: FileHandle; flags: FsyncFlags = {}): SqePointer =
   sqe.opcode = OP_FSYNC
   sqe.fd = fd
-  sqe.fsync_flags = flags
+  sqe.op_flags.fsync_flags = flags
   return sqe
 
 proc fallocate*(sqe: SqePointer; fd: FileHandle; mode: FileMode; offset: Off; len: int): SqePointer =
   sqe.prepRw(OP_FALLOCATE, fd, len, mode.int, offset)
 
 proc statx*(sqe: SqePointer; fd: FileHandle; path: string; flags: uint32; mask: uint32; buf: ptr Stat): SqePointer =
-  sqe.statxFlags = flags
+  sqe.op_flags.statxFlags = flags
   sqe.prepRw(OP_STATX, fd, cast[pointer](path.cstring), mask, cast[pointer](buf))
 
 
@@ -79,14 +79,14 @@ proc read*(sqe: SqePointer; fd: FileHandle; buffer: pointer; len: int; offset: i
 
 proc read*(sqe: SqePointer; fd: FileHandle; group_id: uint16, len: int, offset: int = 0): SqePointer =
   sqe.flags.incl(SQE_BUFFER_SELECT)
-  sqe.buf_index = group_id
+  sqe.buf.buf_index = group_id
   sqe.prepRw(OP_READ, fd, 0, len, offset)
 
 proc readv*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): SqePointer =
   sqe.prepRw(OP_READV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
 
 proc read_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec; offset: int = 0; bufferIndex: int = 0): SqePointer =
-  sqe.bufIndex = bufferIndex.uint16
+  sqe.buf.bufIndex = bufferIndex.uint16
   sqe.prepRw(OP_READ_FIXED, fd, iovec.iov_base, iovec.iov_len, offset)
 
 proc write*(sqe: SqePointer; fd: FileHandle; buffer: pointer; len: int; offset: int = 0): SqePointer =
@@ -99,12 +99,12 @@ proc writev*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 
   sqe.prepRw(OP_WRITEV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
 
 proc write_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec, offset: int = 0, bufferIndex: int = 0): SqePointer =
-  sqe.bufIndex = bufferIndex.uint16
+  sqe.buf.bufIndex = bufferIndex.uint16
   sqe.prepRw(OP_WRITE_FIXED, fd, iovec.iov_base, iovec.iov_len, offset)
 
 
 proc accept*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): SqePointer =
-  sqe.acceptFlags = flags
+  sqe.op_flags.acceptFlags = flags
   sqe.prepRw(OP_ACCEPT, sock, cast[pointer](`addr`), 0, cast[pointer](addrLen))
 
 proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ref SockAddr, addrLen: ref SockLen, flags: uint16): SqePointer =
@@ -119,7 +119,7 @@ proc epoll_ctl*(sqe: SqePointer; epfd: FileHandle; fd: FileHandle; op: uint32; e
   sqe.prepRw(OP_EPOLL_CTL, epfd, cast[pointer](ev), op, fd)
 
 proc poll_add*(sqe: SqePointer; fd: FileHandle; poll_mask: uint32): SqePointer =
-  littleEndian32(addr result.poll32Events, unsafeAddr poll_mask)
+  littleEndian32(addr result.op_flags.poll32Events, unsafeAddr poll_mask)
   sqe.prepRw(OP_POLL_ADD, fd, nil, 1, 0)
 
 proc poll_multi*(sqe: SqePointer; fd: FileHandle; poll_mask: uint32): SqePointer =
@@ -130,12 +130,12 @@ proc poll_remove*(sqe: SqePointer; targetUserData: UserData): SqePointer =
   sqe.prepRw(OP_POLL_REMOVE, -1, target_user_data, 0, 0)
 
 proc poll_update*(sqe: SqePointer; oldUserData: UserData; newUserData: UserData; poll_mask: uint32, flags: uint32): SqePointer =
-  littleEndian32(addr result.poll32Events, unsafeAddr poll_mask)
+  littleEndian32(addr result.op_flags.poll32Events, unsafeAddr poll_mask)
   sqe.prepRw(OP_POLL_REMOVE, -1, oldUserData, int flags, cast[int](newUserData))
 
 
 proc recv*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32=0): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_RECV, sock, buffer, len, 0)
 
 proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32): SqePointer =
@@ -143,17 +143,17 @@ proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: 
   sqe.recv(sock, buffer, len, flags)
 
 proc send*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32 = 0): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SEND, sock, buffer, len, 0)
 
 proc send_zc*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32; zc_flags: uint; buf_index: uint): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.ioprio = cast[IoprioFlags](zc_flags)
   sqe.prepRw(OP_SENDZC, sock, buffer, len, 0)
 
 
 proc recvmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_RECVMSG, sock, cast[pointer](msghdr), 1, 0)
 
 proc recvmsg_multishot*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
@@ -161,16 +161,16 @@ proc recvmsg_multishot*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr
   sqe.recvmsg(sock, msghdr, flags)
 
 proc sendmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SENDMSG, sock, cast[pointer](msghdr), 1, 0)
 
 proc sendmsg_zc*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
-  sqe.msgFlags = flags
+  sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SENDMSG_ZC, sock, cast[pointer](msghdr), 1, 0)
 
 
 proc openat*(sqe: SqePointer; dfd: FileHandle; path: string; flags: uint32; mode: FileMode): SqePointer =
-  sqe.openFlags = flags
+  sqe.op_flags.openFlags = flags
   sqe.prepRw(OP_OPENAT, dfd, cast[pointer](path.cstring), mode.int, 0)
 
 proc close*(sqe: SqePointer; fd: FileHandle | SocketHandle): SqePointer =
@@ -179,11 +179,11 @@ proc close*(sqe: SqePointer; fd: FileHandle | SocketHandle): SqePointer =
   return sqe
 
 proc renameat*(sqe: SqePointer; oldDirFd: FileHandle; oldPath: string; newDirFd: FileHandle; newPath: string; flags: uint32): SqePointer =
-  sqe.renameFlags = flags
+  sqe.op_flags.renameFlags = flags
   sqe.prepRw(OP_RENAMEAT, oldDirFd, cast[pointer](oldPath.cstring), newDirFd.int, cast[int](newPath.cstring))
 
 proc unlinkat*(sqe: SqePointer; dirFd: FileHandle; path: string; flags: uint32): SqePointer =
-  sqe.unlinkFlags = flags
+  sqe.op_flags.unlinkFlags = flags
   sqe.prepRw(OP_UNLINKAT, dirFd, cast[pointer](path.cstring), 0, 0)
 
 proc mkdirat*(sqe: SqePointer; dirFd: FileHandle; path: string; mode: uint32): SqePointer =
@@ -193,25 +193,25 @@ proc symlinkat*(sqe: SqePointer; target: string; newDirFd: FileHandle; linkPath:
   sqe.prepRw(OP_SYMLINKAT, newDirFd, cast[pointer](target.cstring), 0, cast[pointer](linkPath.cstring))
 
 proc linkat*(sqe: SqePointer; oldDirFd: FileHandle; oldPath: string; newDirFd: FileHandle; newPath: string; flags: uint32): SqePointer =
-  result.hardlinkFlags = flags
+  result.op_flags.hardlinkFlags = flags
   sqe.prepRw(OP_LINKAT, oldDirFd, cast[pointer](oldPath.cstring), newDirFd, cast[pointer](newPath.cstring))
 
 
 proc timeout*(sqe: SqePointer; ts: Timespec, count: uint32; flags: TimeoutFlags): SqePointer =
-  sqe.timeoutFlags = flags
+  sqe.op_flags.timeoutFlags = flags
   sqe.prepRw(OP_TIMEOUT, -1, cast[pointer](ts.unsafeAddr), 1, count)
 
 proc timeout_remove*(sqe: SqePointer; timeout_user_data: pointer; flags: TimeoutFlags): SqePointer =
-  sqe.timeoutFlags = flags
+  sqe.op_flags.timeoutFlags = flags
   sqe.prepRw(OP_TIMEOUT_REMOVE, -1, timeout_user_data, 0, 0)
 
 proc link_timeout*(sqe: SqePointer; ts: Timespec; flags: TimeoutFlags): SqePointer =
-  sqe.timeoutFlags = flags
+  sqe.op_flags.timeoutFlags = flags
   sqe.prepRw(OP_LINK_TIMEOUT, -1, cast[pointer](ts.unsafeAddr), 1, 0)
 
 
 proc cancel*(sqe: SqePointer; cancelUserData: UserData; flags: uint32): SqePointer =
-  sqe.cancelFlags = flags
+  sqe.op_flags.cancelFlags = flags
   sqe.prepRw(OP_ASYNC_CANCEL, -1, cancelUserData, 0, 0)
 
 proc shutdown*(sqe: SqePointer; sockfd: FileHandle; how: uint32): SqePointer =
@@ -219,26 +219,26 @@ proc shutdown*(sqe: SqePointer; sockfd: FileHandle; how: uint32): SqePointer =
 
 
 proc provide_buffers*(sqe: SqePointer; buffers: pointer; bufferSize: int; buffersCount: int; groupId: uint; bufferId: uint): SqePointer =
-  sqe.bufIndex = groupId.uint16
+  sqe.buf.bufIndex = groupId.uint16
   sqe.prepRw(OP_PROVIDE_BUFFERS, cast[FileHandle](buffersCount), buffers, bufferSize, bufferId.int)
 
 proc remove_buffers*(sqe: SqePointer; buffersCount: int; groupId: uint;): SqePointer =
-  sqe.bufIndex = groupId.uint16
+  sqe.buf.bufIndex = groupId.uint16
   sqe.prepRw(OP_REMOVE_BUFFERS, cast[FileHandle](buffersCount), nil, 0, 0)
 
 proc sync_file_range*(sqe: SqePointer; fd: FileHandle; len: int; flags: uint32; offset: Off = 0): SqePointer =
-  sqe.sync_range_flags = flags
+  sqe.op_flags.sync_range_flags = flags
   sqe.prepRw(OP_SYNC_FILE_RANGE, fd, nil, len, offset)
 
 proc files_update*(sqe: SqePointer, fds: seq[FileHandle], offset: int = 0): SqePointer =
   sqe.prepRw(OP_FILES_UPDATE, -1, cast[pointer](fds[0].unsafeAddr), fds.len, offset)
 
 proc fadvice*(sqe: SqePointer, fd: FileHandle, len: int, advice: int, offset: int = 0): SqePointer =
-  sqe.fadvice_advice = advice
+  sqe.op_flags.fadvice_advice = advice
   sqe.prepRw(OP_FADVISE, fd, nil, len, offset)
 
 proc madvice*(sqe: SqePointer; `addr`: pointer; len: int; advice: int): SqePointer =
-  sqe.fadvice_advice = advice
+  sqe.op_flags.fadvice_advice = advice
   sqe.prepRw(OP_MADVISE, -1, `addr`, len, 0)
 
 proc splice*(sqe: SqePointer; fd_in: FileHandle; off_in: int; fd_out: FileHandle; off_out: int; len: int; flags: int = 0, fixed: bool = false): SqePointer =
@@ -246,46 +246,46 @@ proc splice*(sqe: SqePointer; fd_in: FileHandle; off_in: int; fd_out: FileHandle
   sqe.fd = fd_out
   sqe.len = len
   sqe.off = off_out
-  sqe.splice_fd_in = fd_in
-  sqe.splice_off_in = off_in
+  sqe.splice.splice_fd_in = fd_in
+  sqe.`addr`.splice_off_in = off_in
   if fixed:
     flags = flags or SPLICE_F_FD_IN_FIXED
-  sqe.splice_flags = flags
+  sqe.op_flags.splice_flags = flags
   return sqe
 
 proc tee*(sqe: SqePointer, fd_in: FileHandle, fd_out: FileHandle; len: int; flags: int = 0, fixed: bool = false): SqePointer =
   sqe.opcode = OP_TEE
   sqe.fd = fd_out
   sqe.len = len
-  sqe.splice_fd_in = fd_in
+  sqe.splice.splice_fd_in = fd_in
   if fixed:
     flags = flags or SPLICE_F_FD_IN_FIXED
-  sqe.splice_flags = flags
+  sqe.op_flags.splice_flags = flags
   return sqe
 
 proc msg_ring*(sqe: SqePointer; ring_fd: FileHandle; res: int; user_data: uint64; user_flags: uint32 = 0; opcode_flags: uint32 = 0): SqePointer =
-  sqe.msg_ring_flags = opcode_flags
+  sqe.op_flags.msg_ring_flags = opcode_flags
   sqe.prepRw(OP_MSG_RING, ring_fd, MSG_DATA, res, user_data)
 
 proc fsetxattr*(sqe: SqePointer; fd: FileHandle; name: string; value: string; flags: int = 0): SqePointer =
-  sqe.xattr_flags = flags
+  sqe.op_flags.xattr_flags = flags
   # TODO: which len?
   sqe.prepRw(OP_FSETXATTR, fd, cast[pointer](name.cstring), name.len, cast[pointer](value.cstring))
 
 proc setxattr*(sqe: SqePointer, name: string; value: string; path: string; flags: int = 0): SqePointer =
-  sqe.xattr_flags = flags
-  sqe.addr3 = cast[pointer](path.cstring)
+  sqe.op_flags.xattr_flags = flags
+  sqe.cmd.addr3 = cast[pointer](path.cstring)
   sqe.prepRw(OP_SETXATTR, 0, cast[pointer](name.cstring), name.len, cast[pointer](value.cstring))
 
 proc fgetxattr*(sqe: SqePointer; fd: FileHandle; name: string; buf: pointer; len: int): SqePointer =
   sqe.prepRw(OP_FGETXATTR, fd, cast[pointer](name.cstring), len, buf)
 
 proc getxattr*(sqe: SqePointer; name: string; buf: pointer; len: int; path: string;): SqePointer =
-  sqe.addr3 = cast[pointer](path.cstring)
+  sqe.cmd.addr3 = cast[pointer](path.cstring)
   sqe.prepRw(OP_GETXATTR, 0, cast[pointer](name.cstring), len, buf)
 
 proc socket*(sqe: SqePointer; domain: int; `type`: int; protocol: int; flags: int = 0): SqePointer =
-  sqe.rw_flags = flags
+  sqe.op_flags.rw_flags = flags
   sqe.prepRw(OP_SOCKET, domain, nil, protocol, `type`)
 
   # TODO: direct

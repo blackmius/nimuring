@@ -13,8 +13,6 @@ jobs:
       image: nimlang/nim
     steps:
     - uses: actions/checkout@v2
-    - name: install liburing
-      run: apt update && apt install liburing-dev -y
     - name: Update nimble
       run: nimble update
     - name: Run tests

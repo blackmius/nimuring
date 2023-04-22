@@ -1,18 +1,6 @@
 # nimlang io_uring (nimuring)
 
 this library base on liburing as source of truth about io_uring.
-therefore, it is necessary to install the `liburing-dev`
-
-Then a few words about the library itself:
-This library consists of two parts.
-initially, liburing and all its methods were migrated without modification.
-And secondly, this is the native implementation of the io_uring queue
-to better fit into the style of the nim
-
-
-# using pure liburing
-
-to use clean liburing bindings `import nimuring/liburing`
 
 # TODO
 

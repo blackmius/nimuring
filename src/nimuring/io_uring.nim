@@ -8,50 +8,71 @@ type
   KernelRwfT* {.importc: "__kernel_rwf_t", header: "<linux/fs.h>".} = int
 
 type
-  ## IO submission data structure (Submission Queue Entry)
-  Sqe* {.importc: "struct io_uring_sqe", header: "<liburing/io_uring.h>", bycopy.} = object
-    opcode* {.importc: "opcode".}: Op ##  type of operation for this sqe
-    flags* {.importc: "flags".}: SqeFlags
-    ioprio* {.importc: "ioprio".}: IoprioFlags ##  ioprio for the request
-    fd* {.importc: "fd".}: FileHandle   ##  file descriptor to do IO on
-    off* {.importc: "off".}: Off ##  offset into file
-    addr2* {.importc: "addr2".}: pointer
-    cmdOp* {.importc: "cmd_op".}: uint32
-    pad1* {.importc: "__pad1".}: Off
-    `addr`* {.importc: "addr".}: pointer ##  pointer to buffer or iovecs
-    spliceOffIn* {.importc: "splice_off_in".}: Off
-    len* {.importc: "len".}: int ##  buffer size or number of iovecs
-    rwFlags* {.importc: "rw_flags".}: KernelRwfT
-    fsyncFlags* {.importc: "fsync_flags".}: FsyncFlags
-    pollEvents* {.importc: "poll_events".}: PollFlags ##  compatibility
-    poll32Events* {.importc: "poll32_events".}: uint32 ##  word-reversed for BE
-    syncRangeFlags* {.importc: "sync_range_flags".}: uint32
-    msgFlags* {.importc: "msg_flags".}: uint32
-    timeoutFlags* {.importc: "timeout_flags".}: TimeoutFlags
-    acceptFlags* {.importc: "accept_flags".}: uint32
-    cancelFlags* {.importc: "cancel_flags".}: uint32
-    openFlags* {.importc: "open_flags".}: uint32
-    statxFlags* {.importc: "statx_flags".}: uint32
-    fadviseAdvice* {.importc: "fadvise_advice".}: uint32
-    spliceFlags* {.importc: "splice_flags".}: uint32
-    renameFlags* {.importc: "rename_flags".}: uint32
-    unlinkFlags* {.importc: "unlink_flags".}: uint32
-    hardlinkFlags* {.importc: "hardlink_flags".}: uint32
-    xattrFlags* {.importc: "xattr_flags".}: uint32
-    msgRingFlags* {.importc: "msg_ring_flags".}: MsgRingOpFlags
-    uringCmdFlags* {.importc: "uring_cmd_flags".}: uint32
-    userData* {.importc: "user_data".}: pointer ##  data to be passed back at completion time
-    bufIndex* {.importc: "buf_index".}: uint16 ##  index into fixed buffers, if used
-    bufGroup* {.importc: "buf_group".}: uint16 ##  for grouped buffer selection
-    personality* {.importc: "personality".}: uint16
-    spliceFdIn* {.importc: "splice_fd_in".}: uint32
-    fileIndex* {.importc: "file_index".}: uint32
+  InnerSqeOffset* {.union.} = object
+    off*: Off ##  offset into file
+    addr2*: pointer
+    cmdOp*: uint32
+    pad1*: Off
+
+  InnerSqeAddr* {.union.} = object
+    `addr`*: pointer ##  pointer to buffer or iovecs
+    spliceOffIn*: Off
+
+  InnerSqeFlags* {.union.} = object
+    rwFlags*: KernelRwfT
+    fsyncFlags*: FsyncFlags
+    pollEvents*: PollFlags ##  compatibility
+    poll32Events*: uint32 ##  word-reversed for BE
+    syncRangeFlags*: uint32
+    msgFlags*: uint32
+    timeoutFlags*: TimeoutFlags
+    acceptFlags*: uint32
+    cancelFlags*: uint32
+    openFlags*: uint32
+    statxFlags*: uint32
+    fadviseAdvice*: uint32
+    spliceFlags*: uint32
+    renameFlags*: uint32
+    unlinkFlags*: uint32
+    hardlinkFlags*: uint32
+    xattrFlags*: uint32
+    msgRingFlags*: MsgRingOpFlags
+    uringCmdFlags*: uint32
+  
+  InnerSqeBuf* {.union, packed.} = object
+    bufIndex*: uint16 ##  index into fixed buffers, if used
+    bufGroup*: uint16 ##  for grouped buffer selection
+  
+  InnerSqeSplicePadAddrLen = object
     addrLen* {.importc: "addr_len".}: uint16
     pad3* {.importc: "__pad3".}: array[1, uint16]
+
+  InnerSqeSplice* {.union.} = object
+    spliceFdIn* {.importc: "splice_fd_in".}: uint32
+    fileIndex* {.importc: "file_index".}: uint32
+    addrLen*: InnerSqeSplicePadAddrLen
+  
+  InnerSqeCmd* {.union.} = object
     addr3* {.importc: "addr3".}: pointer
     pad2* {.importc: "__pad2".}: array[1, uint64]
     cmd* {.importc: "cmd".}: uint8 ## If the ring is initialized with SETUP_SQE128, then
                                    ## this field is used for 80 bytes of arbitrary command data
+
+  ## IO submission data structure (Submission Queue Entry)
+  Sqe* {.pure, bycopy.} = object
+    opcode*: Op ##  type of operation for this sqe
+    flags*: SqeFlags
+    ioprio*: IoprioFlags ##  ioprio for the request
+    fd*: FileHandle   ##  file descriptor to do IO on
+    off*: InnerSqeOffset
+    `addr`*: InnerSqeAddr
+    len*: int32 ##  buffer size or number of iovecs
+    opFlags*: InnerSqeFlags
+    userData*: pointer ##  data to be passed back at completion time
+    buf*: InnerSqeBuf
+    personality*: uint16
+    splice*: InnerSqeSplice
+    cmd*: InnerSqeCmd
 
   Op* {.size: sizeof(uint8).} = enum
     OP_NOP
@@ -225,14 +246,11 @@ const ACCEPT_MULTISHOT* = 1u shl 0
 
 type
   ## IO completion data structure (Completion Queue Entry)
-  Cqe* {.importc: "struct io_uring_cqe", header: "<liburing/io_uring.h>", bycopy.} = object
-    userData* {.importc: "user_data".}: uint64 ##  sqe->data submission passed back
-    res* {.importc: "res".}: int32 ##  result code for this event
-    flags* {.importc: "flags".}: CqeFlags
-    # bigCqe* {.importc: "big_cqe".}: ref uint64 ##
-    #                                            ##  If the ring is initialized with SETUP_CQE32, then this field
-    #                                            ##  contains 16-bytes of padding, doubling the size of the CQE.
-    #                                            ##
+  Cqe* = object
+    userData*: uint64 ##  sqe->data submission passed back
+    res*: int32 ##  result code for this event
+    flags*: CqeFlags
+
   CqeFlag* {.size: sizeof(uint32).} = enum
     CQE_F_BUFFER ## If set, the upper 16 bits are the buffer ID
     CQE_F_MORE ## If set, parent SQE will generate more CQE entries
@@ -245,16 +263,17 @@ type
 const CQE_BUFFER_SHIFT* = 16
 
 type
-  Params* {.importc: "struct io_uring_params", header: "<liburing/io_uring.h>", bycopy.} = object
-    sqEntries* {.importc: "sq_entries".}: uint32
-    cqEntries* {.importc: "cq_entries".}: uint32
-    flags* {.importc: "flags".}: SetupFlags
-    sqThreadCpu* {.importc: "sq_thread_cpu".}: uint32
-    sqThreadIdle* {.importc: "sq_thread_idle".}: uint32
-    features* {.importc: "features".}: Features
-    wqFd* {.importc: "wq_fd".}: uint32
-    sqOff* {.importc: "sq_off".}: SqringOffsets
-    cqOff* {.importc: "cq_off".}: CqringOffsets
+  Params* = object
+    sqEntries*: uint32
+    cqEntries*: uint32
+    flags*: SetupFlags
+    sqThreadCpu*: uint32
+    sqThreadIdle*: uint32
+    features*: Features
+    wqFd*: uint32
+    resv*: array[3, uint32]
+    sqOff*: SqringOffsets
+    cqOff*: CqringOffsets
   
   SetupFlag* {.size: sizeof(uint32).} = enum
     SETUP_IOPOLL ## io_context is polled
@@ -299,14 +318,16 @@ type
   Features* = set[Feature]
 
   ## Filled with the offset for mmap(2)
-  SqringOffsets* {.importc: "struct io_sqring_offsets", header: "<liburing/io_uring.h>", bycopy.} = object
-    head* {.importc: "head".}: uint32
-    tail* {.importc: "tail".}: uint32
-    ringMask* {.importc: "ring_mask".}: uint32
-    ringEntries* {.importc: "ring_entries".}: uint32
-    flags* {.importc: "flags".}: SqringFlags
-    dropped* {.importc: "dropped".}: uint32
-    array* {.importc: "array".}: uint32
+  SqringOffsets* = object
+    head*: uint32
+    tail*: uint32
+    ringMask*: uint32
+    ringEntries*: uint32
+    flags*: SqringFlags
+    dropped*: uint32
+    array*: uint32
+    resv1*: uint32
+    resv2*: uint64
   
   SqringFlag* {.size: sizeof(uint32).} = enum
     SQ_NEED_WAKEUP ## needs io_uring_enter wakeup
@@ -314,14 +335,16 @@ type
     SQ_TASKRUN ## task should enter the kernel
   SqringFlags* = set[SqringFlag]
 
-  CqringOffsets* {.importc: "struct io_cqring_offsets", header: "<liburing/io_uring.h>", bycopy.} = object
-    head* {.importc: "head".}: uint32
-    tail* {.importc: "tail".}: uint32
-    ringMask* {.importc: "ring_mask".}: uint32
-    ringEntries* {.importc: "ring_entries".}: uint32
-    overflow* {.importc: "overflow".}: uint32
-    cqes* {.importc: "cqes".}: uint32
-    flags* {.importc: "flags".}: CqringFlags
+  CqringOffsets* = object
+    head*: uint32
+    tail*: uint32
+    ringMask*: uint32
+    ringEntries*: uint32
+    overflow*: uint32
+    cqes*: uint32
+    flags*: CqringFlags
+    resv1*: uint32
+    resv2*: uint64
 
   CqringFlag* {.size: sizeof(uint32).} = enum
     CQ_EVENTFD_DISABLED ## disable eventfd notifications
@@ -434,40 +457,36 @@ const
 const RSRC_REGISTER_SPARSE* = 1u shl 0
 
 type
-  RsrcRegister* {.importc: "struct io_uring_rsrc_register", header: "<liburing/io_uring.h>",
-                        bycopy.} = object
-    nr* {.importc: "nr".}: uint32
-    flags* {.importc: "flags".}: uint32
-    resv2* {.importc: "resv2".}: uint64
-    data* {.importc: "data", align: 64.}: uint64
-    tags* {.importc: "tags", align: 64.}: uint64
+  RsrcRegister* = object
+    nr*: uint32
+    flags*: uint32
+    resv2*: uint64
+    data* {.align: 64.}: uint64
+    tags* {.align: 64.}: uint64
 
-  RsrcUpdate* {.importc: "struct io_uring_rsrc_update", header: "<liburing/io_uring.h>", bycopy.} = object
-    offset* {.importc: "offset".}: uint32
-    resv* {.importc: "resv".}: uint32
-    data* {.importc: "data", align: 64.}: uint64
+  RsrcUpdate* = object
+    offset*: uint32
+    resv*: uint32
+    data*: uint64
 
-  RsrcUpdate2* {.importc: "struct io_uring_rsrc_update2", header: "<liburing/io_uring.h>",
-                       bycopy.} = object
-    offset* {.importc: "offset".}: uint32
-    resv* {.importc: "resv".}: uint32
-    data* {.importc: "data", align: 64.}: uint64
-    tags* {.importc: "tags", align: 64.}: uint64
-    nr* {.importc: "nr".}: uint32
-    resv2* {.importc: "resv2".}: uint32
+  RsrcUpdate2* = object
+    offset*: uint32
+    resv*: uint32
+    data*: uint64
+    tags*: uint64
+    nr*: uint32
+    resv2*: uint32
 
-  NotificationSlot* {.importc: "struct io_uring_notification_slot",
-                            header: "<liburing/io_uring.h>", bycopy.} = object
-    tag* {.importc: "tag".}: uint64
-    resv* {.importc: "resv".}: array[3, uint64]
+  NotificationSlot* = object
+    tag*: uint64
+    resv*: array[3, uint64]
 
-  NotificationRegister* {.importc: "struct io_uring_notification_register",
-                                header: "<liburing/io_uring.h>", bycopy.} = object
-    nrSlots* {.importc: "nr_slots".}: uint32
-    resv* {.importc: "resv".}: uint32
-    resv2* {.importc: "resv2".}: uint64
-    data* {.importc: "data".}: uint64
-    resv3* {.importc: "resv3".}: uint64
+  NotificationRegister* = object
+    nrSlots*: uint32
+    resv*: uint32
+    resv2*: uint64
+    data*: uint64
+    resv3*: uint64
 
 
 ##  Skip updating fd indexes set to this value in the fd table
@@ -476,27 +495,27 @@ const REGISTER_FILES_SKIP* = -2
 const OP_SUPPORTED* = 1u shl 0
 
 type
-  ProbeOp* {.importc: "struct io_uring_probe_op", header: "<liburing/io_uring.h>", bycopy.} = object
-    op* {.importc: "op".}: uint8
-    resv* {.importc: "resv".}: uint8
-    flags* {.importc: "flags".}: uint16 ##  IO_URING_OP_* flags
-    resv2* {.importc: "resv2".}: uint32
+  ProbeOp* = object
+    op*: uint8
+    resv*: uint8
+    flags*: uint16 ##  IO_URING_OP_* flags
+    resv2*: uint32
 
-  Probe* {.importc: "struct io_uring_probe", header: "<liburing/io_uring.h>", bycopy.} = object
-    lastOp* {.importc: "last_op".}: uint8 ##  last opcode supported
-    opsLen* {.importc: "ops_len".}: uint8 ##  length of ops[] array below
-    resv* {.importc: "resv".}: uint16
-    resv2* {.importc: "resv2".}: array[3, uint32]
-    ops* {.importc: "ops".}: ref ProbeOp
+  Probe* = object
+    lastOp*: uint8 ##  last opcode supported
+    opsLen*: uint8 ##  length of ops[] array below
+    resv*: uint16
+    resv2*: array[3, uint32]
+    ops*: ref ProbeOp
 
-  Restriction* {.importc: "struct io_uring_restriction", header: "<liburing/io_uring.h>", bycopy.} = object
-    opcode* {.importc: "opcode".}: RestrictionOp
-    registerOp* {.importc: "register_op".}: uint8 ##  IORING_RESTRICTION_REGISTER_OP
-    sqeOp* {.importc: "sqe_op".}: uint8 ##  IORING_RESTRICTION_SQE_OP
-    sqeFlags* {.importc: "sqe_flags".}: uint8
+  Restriction* = object
+    opcode*: RestrictionOp
+    registerOp*: uint8 ##  IORING_RESTRICTION_REGISTER_OP
+    sqeOp*: uint8 ##  IORING_RESTRICTION_SQE_OP
+    sqeFlags*: uint8
     ##  IORING_RESTRICTION_SQE_FLAGS_*
-    resv* {.importc: "resv".}: uint8
-    resv2* {.importc: "resv2".}: array[3, uint32]
+    resv*: uint8
+    resv2*: array[3, uint32]
   
   RestrictionOp* {.size: sizeof(uint16).} = enum
     RESTRICTION_REGISTER_OP ## Allow an io_uring_register(2) opcode
@@ -505,63 +524,58 @@ type
     RESTRICTION_SQE_FLAGS_REQUIRED ## Require sqe flags (these flags must be set on each submission)
     RESTRICTION_LAST
 
-  Buf* {.importc: "struct io_uring_buf", header: "<liburing/io_uring.h>", bycopy.} = object
-    `addr`* {.importc: "addr".}: uint64
-    len* {.importc: "len".}: uint32
-    bid* {.importc: "bid".}: uint16
-    resv* {.importc: "resv".}: uint16
+  Buf* = object
+    `addr`*: uint64
+    len*: uint32
+    bid*: uint16
+    resv*: uint16
 
-  BufRing* {.importc: "struct io_uring_buf_ring", header: "<liburing/io_uring.h>", bycopy.} = object
-    resv1* {.importc: "resv1".}: uint64
-    resv2* {.importc: "resv2".}: uint32
-    resv3* {.importc: "resv3".}: uint16
-    tail* {.importc: "tail".}: uint16
-    bufs* {.importc: "bufs".}: UncheckedArray[Buf]
-
-
-type
-  BufReg* {.importc: "struct io_uring_buf_reg", header: "<liburing/io_uring.h>", bycopy.} = object ##  argument for IORING_(UN)REGISTER_PBUF_RING
-    ringAddr* {.importc: "ring_addr".}: uint64
-    ringEntries* {.importc: "ring_entries".}: uint32
-    bgid* {.importc: "bgid".}: uint16
-    pad* {.importc: "pad".}: uint16
-    resv* {.importc: "resv".}: array[3, uint64]
-
-type
-  GeteventsArg* {.importc: "struct io_uring_getevents_arg", header: "<liburing/io_uring.h>",
-                        bycopy.} = object
-    sigmask* {.importc: "sigmask".}: uint64
-    sigmaskSz* {.importc: "sigmask_sz".}: uint32
-    pad* {.importc: "pad".}: uint32
-    ts* {.importc: "ts".}: uint64
+  BufRing* = object
+    resv1*: uint64
+    resv2*: uint32
+    resv3*: uint16
+    tail*: uint16
+    bufs*: UncheckedArray[Buf]
 
 
 type
-  SyncCancelReg* {.importc: "struct io_uring_sync_cancel_reg",
-                         header: "<liburing/io_uring.h>", bycopy.} = object ##
-                                                            ##  Argument for
-                                                            ## IORING_REGISTER_SYNC_CANCEL
-                                                            ##
-    `addr`* {.importc: "addr".}: uint64
-    fd* {.importc: "fd".}: int32
-    flags* {.importc: "flags".}: uint32
-    timeout* {.importc: "timeout".}: Timespec
-    pad* {.importc: "pad".}: array[4, uint64]
+  BufReg* = object ##  argument for IORING_(UN)REGISTER_PBUF_RING
+    ringAddr*: uint64
+    ringEntries*: uint32
+    bgid*: uint16
+    pad*: uint16
+    resv*: array[3, uint64]
+
+type
+  GeteventsArg* = object
+    sigmask*: uint64
+    sigmaskSz*: uint32
+    pad*: uint32
+    ts*: uint64
 
 
 type
-  FileIndexRange* {.importc: "struct io_uring_file_index_range",
-                          header: "<liburing/io_uring.h>", bycopy.} = object ##
-                                                             ##  Argument for
-                                                             ## IORING_REGISTER_FILE_ALLOC_RANGE
-                                                             ##  The range is specified as [off, off + len)
-                                                             ##
-    off* {.importc: "off".}: uint32
-    len* {.importc: "len".}: uint32
-    resv* {.importc: "resv".}: uint64
+  SyncCancelReg* = object
+    ##  Argument for
+    ## IORING_REGISTER_SYNC_CANCEL
+    `addr`*: uint64
+    fd*: int32
+    flags*: uint32
+    timeout*: Timespec
+    pad*: array[4, uint64]
 
-  RecvmsgOut* {.importc: "struct io_uring_recvmsg_out", header: "<liburing/io_uring.h>", bycopy.} = object
-    namelen* {.importc: "namelen".}: uint32
-    controllen* {.importc: "controllen".}: uint32
-    payloadlen* {.importc: "payloadlen".}: uint32
-    flags* {.importc: "flags".}: uint32
+
+type
+  FileIndexRange* = object
+    ##  Argument for
+    ## IORING_REGISTER_FILE_ALLOC_RANGE
+    ##  The range is specified as [off, off + len)
+    off*: uint32
+    len*: uint32
+    resv*: uint64
+
+  RecvmsgOut* = object
+    namelen*: uint32
+    controllen*: uint32
+    payloadlen*: uint32
+    flags*: uint32
