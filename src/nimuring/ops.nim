@@ -11,6 +11,7 @@ import queue
 import posix
 import epoll
 import std/endians
+import os
 
 type SqePointer = ref Sqe or ptr Sqe
 type UserData* = pointer | SomeNumber
@@ -93,7 +94,7 @@ proc write*(sqe: SqePointer; fd: FileHandle; buffer: pointer; len: int; offset: 
   sqe.prepRw(OP_WRITE, fd, buffer, len, offset)
 
 proc write*(sqe: SqePointer; fd: FileHandle; str: string; offset: int = 0): SqePointer =
-  sqe.prepRw(OP_WRITE, fd, cast[pointer](str.cstring), len(str), offset)
+  sqe.write(fd, cast[pointer](str.cstring), len(str), offset)
 
 proc writev*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): SqePointer =
   sqe.prepRw(OP_WRITEV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
@@ -146,6 +147,9 @@ proc send*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags
   sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SEND, sock, buffer, len, 0)
 
+proc send*(sqe: SqePointer; sock: SocketHandle; str: string; flags: uint32 = 0): SqePointer =
+  sqe.send(sock, cast[pointer](str.cstring), str.len, 0)
+
 proc send_zc*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32; zc_flags: uint; buf_index: uint): SqePointer =
   sqe.op_flags.msgFlags = flags
   sqe.ioprio = cast[IoprioFlags](zc_flags)
@@ -169,9 +173,9 @@ proc sendmsg_zc*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags
   sqe.prepRw(OP_SENDMSG_ZC, sock, cast[pointer](msghdr), 1, 0)
 
 
-proc openat*(sqe: SqePointer; dfd: FileHandle; path: string; flags: uint32; mode: FileMode): SqePointer =
-  sqe.op_flags.openFlags = flags
-  sqe.prepRw(OP_OPENAT, dfd, cast[pointer](path.cstring), mode.int, 0)
+proc openat*(sqe: SqePointer; dfd: FileHandle; path: string; flags: int32 = 0; mode: set[FilePermission] = {}): SqePointer =
+  sqe.op_flags.openFlags = cast[uint32](flags)
+  sqe.prepRw(OP_OPENAT, dfd, cast[pointer](path.cstring), cast[cint](mode), 0)
 
 proc close*(sqe: SqePointer; fd: FileHandle | SocketHandle): SqePointer =
   sqe.opcode = OP_CLOSE
@@ -429,7 +433,7 @@ proc sendmsg_zc*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: p
   ## Returns a pointer to the SQE.
   q.getSqe().sendmsg_zc(sock, msghdr, flags).setUserData(userData)
 
-proc openat*(q: var Queue; userData: UserData; dfd: FileHandle; path: string; flags: uint32; mode: FileMode): ptr Sqe =
+proc openat*(q: var Queue; userData: UserData; dfd: FileHandle; path: string; flags: int32 = 0; mode: set[FilePermission] = {}): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform an `openat(2)`.
   ## Returns a pointer to the SQE.
   q.getSqe().openat(dfd, path, flags, mode).setUserData(userData)
