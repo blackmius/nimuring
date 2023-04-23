@@ -113,16 +113,14 @@ proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadId
 proc sqFlush(queue: var Queue): int =
   ## Sync internal state with kernel ring state on the SQ side. Returns the
   ## number of pending items in the SQ ring, for the shared ring.
-  var
-    sq = queue.sq
-    tail = sq.sqe_tail
-  if sq.sqe_head != tail:
+  var tail = queue.sq.sqe_tail
+  if queue.sq.sqe_head != tail:
     queue.sq.sqe_head = tail
     # Ensure kernel sees the SQE updates before the tail update.
     if SetupSqpoll in queue.params.flags:
-      atomic_store_explicit(sq.tail, tail, moRelaxed)
+      atomic_store_explicit(queue.sq.tail, tail, moRelaxed)
     else:
-      atomic_store_explicit(sq.tail, tail, moRelease)
+      atomic_store_explicit(queue.sq.tail, tail, moRelease)
   # This _may_ look problematic, as we're not supposed to be reading
   # SQ->head without acquire semantics. When we're in SQPOLL mode, the
   # kernel submitter could be updating this right now. For non-SQPOLL,
@@ -132,30 +130,27 @@ proc sqFlush(queue: var Queue): int =
   # atomically. Worst case, we're going to be over-estimating what
   # we can submit. The point is, we need to be able to deal with this
   # situation regardless of any perceived atomicity.
-  return int(tail - sq.head[])
+  return int(tail - queue.sq.head[])
 
-proc getSqe*(queue: var Queue): ptr Sqe =
+proc getSqe*(queue: var Queue): ptr Sqe {.inline.} =
   ## Return an sqe to fill. Application must later call queue.submit()
   ## when it's ready to tell the kernel about it. The caller may call this
   ## function multiple times before calling queue.submit().
   ## Returns a vacant sqe, or nil if we're full.
   result = nil
   var
-    sq = queue.sq
     head: uint32
-    next = sq.sqe_tail + 1
+    next = queue.sq.sqe_tail + 1
     shift = 0
   if SetupSqe128 in queue.params.flags:
     shift = 1
   if SetupSqpoll in queue.params.flags:
-    head = atomic_load_explicit(sq.head, moRelaxed)
+    head = atomic_load_explicit(queue.sq.head, moRelaxed)
   else:
-    head = atomic_load_explicit(sq.head, moAcquire)
-  if next - head <= sq.entries[]:
-    let index = (sq.sqe_tail and sq.mask[]) shl shift
-    result = cast[ptr Sqe](sq.sqes + index.int * sizeof(Sqe))
-    # after the overflow, the SQE queues may already be filled,
-    # in order to avoid errors, it is better to reset
+    head = atomic_load_explicit(queue.sq.head, moAcquire)
+  if next - head <= queue.sq.entries[]:
+    let index = (queue.sq.sqe_tail and queue.sq.mask[]) shl shift
+    result = cast[ptr Sqe](queue.sq.sqes + index.int * sizeof(Sqe))
     result[].reset()
     queue.sq.sqe_tail = next
 
