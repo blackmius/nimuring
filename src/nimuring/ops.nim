@@ -14,7 +14,7 @@ import std/endians
 import os
 
 type SqePointer = ref Sqe or ptr Sqe
-type UserData* = pointer | SomeNumber
+type UserData*[T] = pointer | SomeNumber | ptr T
 
 {.push inline, discardable.}
 
@@ -86,6 +86,9 @@ proc read*(sqe: SqePointer; fd: FileHandle; group_id: uint16, len: int, offset: 
 proc readv*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): SqePointer =
   sqe.prepRw(OP_READV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
 
+proc readv*(sqe: SqePointer; fd: FileHandle; iovec: ptr IOVec; offset: int = 0): SqePointer =
+  sqe.prepRw(OP_READV, fd, cast[pointer](iovec), 1, offset)
+
 proc read_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec; offset: int = 0; bufferIndex: int = 0): SqePointer =
   sqe.buf.bufIndex = bufferIndex.uint16
   sqe.prepRw(OP_READ_FIXED, fd, iovec.iov_base, iovec.iov_len, offset)
@@ -108,7 +111,7 @@ proc accept*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen:
   sqe.op_flags.acceptFlags = flags
   sqe.prepRw(OP_ACCEPT, sock, cast[pointer](`addr`), 0, cast[pointer](addrLen))
 
-proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ref SockAddr, addrLen: ref SockLen, flags: uint16): SqePointer =
+proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): SqePointer =
   sqe.ioprio.incl(RECVSEND_POLL_FIRST)
   sqe.accept(sock, `addr`, addrLen, flags)
 
@@ -179,7 +182,7 @@ proc openat*(sqe: SqePointer; dfd: FileHandle; path: string; flags: int32 = 0; m
 
 proc close*(sqe: SqePointer; fd: FileHandle | SocketHandle): SqePointer =
   sqe.opcode = OP_CLOSE
-  sqe.fd = fd
+  sqe.fd = cast[FileHandle](fd)
   return sqe
 
 proc renameat*(sqe: SqePointer; oldDirFd: FileHandle; oldPath: string; newDirFd: FileHandle; newPath: string; flags: uint32): SqePointer =
@@ -327,6 +330,12 @@ proc readv*(q: var Queue; userData: UserData; fd: FileHandle; iovecs: seq[IOVec]
   ## If you want to do a `preadv2()` then set `rw_flags` on the returned SQE. See https://linux.die.net/man/2/preadv.
   q.getSqe().readv(fd, iovecs, offset).setUserData(userData)
 
+proc readv*(q: var Queue; userData: UserData; fd: FileHandle; iovec: ptr IOVec; offset: int = 0): ptr Sqe =
+  ## Queues (but does not submit) an SQE to perform a `preadv` depending on the buffer type.
+  ## Reading into a `iovecs` uses `preadv(2)`
+  ## If you want to do a `preadv2()` then set `rw_flags` on the returned SQE. See https://linux.die.net/man/2/preadv.
+  q.getSqe().readv(fd, iovec, offset).setUserData(userData)
+
 proc read*(q: var Queue; userData: UserData; fd: FileHandle; group_id: uint16, len: int, offset: int = 0): ptr Sqe =
   ## io_uring will select a buffer that has previously been provided with `provide_buffers`.
   ## The buffer group referenced by `group_id` must contain at least one buffer for the recv call to work.
@@ -371,7 +380,7 @@ proc accept*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr S
   ## Returns a pointer to the SQE.
   q.getSqe().accept(sock, `addr`, addrLen, flags).setUserData(userData)
 
-proc accept_multishot*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: SockAddr, addrLen: SockLen, flags: uint16): ptr Sqe =
+proc accept_multishot*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform an `accept4(2)` on a socket.
   ## Accept multiple new connections on a socket.
   ## Returns a pointer to the SQE.

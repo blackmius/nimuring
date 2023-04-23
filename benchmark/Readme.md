@@ -35,12 +35,32 @@ entries=2048 rps=28769110.99678264
 entries=4096 rps=29134602.94357967
 ```
 
-| Entries | Liburing   | NIM        |
-|---------|------------|------------|
-| 64      | 10 084 304 | 25 591 082 |
-| 128     | 11 346 487 | 27 040 365 |
-| 256     | 11 341 468 | 26 398 882 |
-| 512     | 11 668 339 | 28 281 618 |
-| 1024    | 11 855 505 | 28 808 638 |
-| 2048    | 11 851 992 | 28 769110  |
-| 4096    | 11 816 420 | 29 134 602 |
+``` sh
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring$ nim r -d:release -d:userdata benchmark/throughput.nim 
+Hint: used config file '/home/dterlyakhin/.choosenim/toolchains/nim-1.6.10/config/nim.cfg' [Conf]
+Hint: used config file '/home/dterlyakhin/.choosenim/toolchains/nim-1.6.10/config/config.nims' [Conf]
+Hint: used config file '/home/dterlyakhin/projects/nimuring/benchmark/config.nims' [Conf]
+.............................................................................................
+CC: throughput.nim
+Hint:  [Link]
+Hint: gc: refc; opt: speed; options: -d:release
+60695 lines; 0.737s; 75.961MiB peakmem; proj: /home/dterlyakhin/projects/nimuring/benchmark/throughput.nim; out: /home/dterlyakhin/.cache/nim/throughput_r/throughput_3157E4ECA3E6BF0233791624812ABD41D9719D43 [SuccessX]
+Hint: /home/dterlyakhin/.cache/nim/throughput_r/throughput_3157E4ECA3E6BF0233791624812ABD41D9719D43  [Exec]
+64 21479252.49194232
+128 22401733.78666677
+256 21962621.11232505
+512 22781437.6663643
+1024 23111091.22530106
+2048 22954974.59779554
+4096 22840167.00090588
+```
+
+| Entries | Liburing   | NIM        | using UserData |
+|---------|------------|------------|----------------|
+| 64      | 10 084 304 | 25 591 082 | 21 479 252     |
+| 128     | 11 346 487 | 27 040 365 | 22 401 733     |
+| 256     | 11 341 468 | 26 398 882 | 21 962 621     |
+| 512     | 11 668 339 | 28 281 618 | 22 781 437     |
+| 1024    | 11 855 505 | 28 808 638 | 23 111 091     |
+| 2048    | 11 851 992 | 28 769110  | 22 954 974     |
+| 4096    | 11 816 420 | 29 134 602 | 22 840 167     |

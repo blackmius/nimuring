@@ -395,7 +395,7 @@ var
 
 proc setup*(entries: cint, params: ptr Params): FileHandle =
   ## https://man7.org/linux/man-pages/man2/io_uring_setup.2.html
-  result = syscall(SYS_io_uring_setup, entries, params)
+  result = syscall(SYS_io_uring_setup, entries, params, 0, 0, 0, 0)
   if result < 0:
     raiseOSError osLastError()
 

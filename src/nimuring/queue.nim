@@ -83,7 +83,8 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
 
 proc `=destroy`(queue: var Queue) =
   ## tear down the queue
-  deallocShared(queue.params)
+  if queue.params != nil:
+    deallocShared(queue.params)
   if queue.cq.ring != nil:
     uringUnmap(queue.cq.ring, queue.params.cqEntries.int * sizeof(Cqe))
   if queue.sq.ring != nil:
@@ -95,7 +96,7 @@ proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
 proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): Queue =
   assert sqEntries.isPowerOfTwo, "Entries must be in the power of two"
-  var params = cast[ptr Params](allocShared(sizeof Params))
+  var params = createShared(Params)
   params.flags = flags
   params.sqThreadCpu = sqThreadCpu.uint32
   params.sqThreadIdle = sqThreadIdle.uint32
@@ -231,11 +232,11 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
     startIndex = int(head and queue.cq.mask[])
     endIndex = int(tail and queue.cq.mask[])
     startCount = queue.cq.entries[].int - startIndex
-  result = newSeq[Cqe](ready)
+  newSeq[Cqe](result, ready)
   if startCount < ready.int:
     # overflow needs 2 memcpy
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
-    copyMem(result[startCount].unsafeAddr, queue.cq.cqes, (endIndex + 1) * sizeof(Cqe))
+    copyMem(result[startCount].unsafeAddr, queue.cq.cqes, endIndex * sizeof(Cqe))
   else:
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
   atomic_store_explicit(queue.cq.head, tail, moRelease)
