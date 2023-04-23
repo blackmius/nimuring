@@ -2,6 +2,9 @@
 !**/
 !*.*
 
+# Ide
+.vscode/
+
 # Cache
 nimcache*/
 rnimcache*/
