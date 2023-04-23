@@ -323,7 +323,7 @@ type
     tail*: uint32
     ringMask*: uint32
     ringEntries*: uint32
-    flags*: SqringFlags
+    flags*: uint32
     dropped*: uint32
     array*: uint32
     resv1*: uint32
@@ -342,7 +342,7 @@ type
     ringEntries*: uint32
     overflow*: uint32
     cqes*: uint32
-    flags*: CqringFlags
+    flags*: uint32
     resv1*: uint32
     resv2*: uint64
 

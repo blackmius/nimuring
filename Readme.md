@@ -7,9 +7,8 @@ this library base on liburing as source of truth about io_uring.
 - [ ] Queue
   - [x] passing flags and read internal state
   - [ ] features
-    - [ ] IO_SQPOLL
+    - [x] IO_SQPOLL
     - [ ] IO_WQ (multithreading)
-    - [ ] FEAT_SINGLE_MMAP
   - [x] Sqe batching
   - [x] getting a CQEs in a convenient form (batching)
 

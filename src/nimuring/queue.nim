@@ -28,7 +28,7 @@ type
     ring: pointer
 
   SqRing = object of Ring
-    flags: SqringFlags
+    flags: ptr SqringFlags
     dropped: pointer
     array: pointer
     sqes: ptr Sqe
@@ -41,7 +41,7 @@ type
     sqeHead: uint32
 
   CqRing = object of Ring
-    flags: CqringFlags
+    flags: ptr CqringFlags
     overflow: pointer
     cqes: pointer
 
@@ -63,6 +63,7 @@ proc newRing(fd: FileHandle; offset: ptr CqringOffsets; size: uint32): CqRing =
   result.ring = ring
   result.cqes = ring + offset.cqes
   result.overflow = ring + offset.overflow
+  result.flags = cast[ptr CqringFlags](ring + offset.flags)
   result.init offset
 
 proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
@@ -73,6 +74,7 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
   result.ring = ring
   result.dropped = ring + offset.dropped
   result.array = ring + offset.array
+  result.flags = cast[ptr SqringFlags](ring + offset.flags)
   # Directly map SQ slots to SQEs
   for i in 0..size:
     cast[ptr UncheckedArray[uint32]](result.array)[i] = i
@@ -81,6 +83,7 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
 
 proc `=destroy`(queue: var Queue) =
   ## tear down the queue
+  deallocShared(queue.params)
   if queue.cq.ring != nil:
     uringUnmap(queue.cq.ring, queue.params.cqEntries.int * sizeof(Cqe))
   if queue.sq.ring != nil:
@@ -90,21 +93,22 @@ proc `=destroy`(queue: var Queue) =
 
 proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
-proc newQueue*(entries: int; flags = defaultFlags; sqThreadCpu = false;
-    sqThreadIdle = false): Queue =
-  assert entries.isPowerOfTwo, "Entries must be in the power of two"
+proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): Queue =
+  assert sqEntries.isPowerOfTwo, "Entries must be in the power of two"
   var params = cast[ptr Params](allocShared(sizeof Params))
   params.flags = flags
   params.sqThreadCpu = sqThreadCpu.uint32
   params.sqThreadIdle = sqThreadIdle.uint32
+  params.wqFd = wqFd.uint32
+  params.cqEntries = cqEntries.uint32
   # ask the kernel for the file-descriptor to a ring pair of the spec'd size
   # this also populates the contents of the params object
-  result.fd = setup(entries.cint, params)
+  result.fd = setup(sqEntries.cint, params)
   # save that
   result.params = params
   # setup the two rings
-  result.cq = newRing(result.fd, addr params.cqOff, params.cqEntries)
   result.sq = newRing(result.fd, addr params.sqOff, params.sqEntries)
+  result.cq = newRing(result.fd, addr params.cqOff, params.cqEntries)
 
 proc sqFlush(queue: var Queue): int =
   ## Sync internal state with kernel ring state on the SQ side. Returns the
@@ -167,13 +171,13 @@ proc sqNeedsEnter(queue: var Queue; submit: int; flags: var EnterFlags): bool =
   # Ensure the kernel can see the store to the SQ tail before we read
   # the flags.
   atomic_thread_fence(moSequentiallyConsistent)
-  if SqNeedWakeup in atomic_load_explicit[SqringFlags](addr queue.sq.flags, moRelaxed):
+  if SqNeedWakeup in atomic_load_explicit[SqringFlags](queue.sq.flags, moRelaxed):
     flags.incl(EnterSqWakeup)
     return true
   return false;
 
 template cqNeedsFlush(queue: var Queue): bool =
-  {SqCqOverflow, SqTaskrun} <= atomic_load_explicit[SqringFlags](addr queue.sq.flags, moRelaxed)
+  {SqCqOverflow, SqTaskrun} <= atomic_load_explicit[SqringFlags](queue.sq.flags, moRelaxed)
 
 template cqNeedsEnter(queue: var Queue): bool =
   SetupIopoll in queue.params.flags or queue.cqNeedsFlush

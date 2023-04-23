@@ -7,7 +7,7 @@ var count: int = 0
 var time = cpuTime()
 while count < 1_000_000:
     for i in 0..q.params.sqEntries-1:
-        q.nop()
+        q.nop(0)
     q.submit()
     count += len(q.copyCqes(1))
 time = cpuTime() - time
