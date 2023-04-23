@@ -12,8 +12,7 @@ proc run(entries: int) =
       for i in 0..<entries:
         q.nop(i)
       q.submit()
-      discard q.copyCqes(entries.uint)
-      count += entries
+      count += q.copyCqes(entries.uint).len
   time = cpuTime() - time
   var rps = repeat / time
   echo q.params.sqEntries, " ", rps
