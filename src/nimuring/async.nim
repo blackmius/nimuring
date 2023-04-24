@@ -5,12 +5,13 @@ import io_uring, queue, ops
 
 
 type
-  Callback = proc (res: int32) {.closure, gcsafe.}
+  Callback = proc (res: int32) {.closure.}
   Loop = ref object
     q: Queue
     sqes: Deque[Sqe]
   Event = object
     cb: Callback
+    cell: ForeignCell
 
 var gLoop {.threadvar.}: owned Loop
 
@@ -29,10 +30,11 @@ proc getLoop*(): Loop =
 
 
 template drainQueue(loop: Loop) =
-  let available = min(cast[int](loop.q.params.sqEntries - loop.q.sqReady), loop.sqes.len)
-  for _ in 1..available:
+  while loop.sqes.len != 0:
     var loopSqe = loop.sqes.popFirst()
     var sqe = loop.q.getSqe()
+    if sqe.isNil:
+      break
     sqe[] = loopSqe
 
 proc poll*() =
@@ -46,9 +48,9 @@ proc poll*() =
   for cqe in cqes:
     let ev = cast[ptr Event](cqe.userData)
     ev.cb(cqe.res)
+    dispose(ev.cell)
     dealloc(ev)
   while loop.q.params.sqEntries - loop.q.sqReady == 0:
-    # the kernel did not have time to move the head
     discard
 
 proc runForever*() =
@@ -68,27 +70,35 @@ proc getSqe(): ptr Sqe =
 
 type AsyncFD* = distinct int
 
+proc event(cb: Callback): ptr Event {.inline.} =
+  result = create(Event)
+  result.cb = cb
+  result.cell = protect(rawEnv(cb))
+
+proc nop*(): owned(Future[void]) =
+  var retFuture = newFuture[void]("nop")
+  proc cb(res: int32) =
+    retFuture.complete()
+  getSqe().nop().setUserData(event(cb))
+  return retFuture
+
 proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[void]) =
   var retFuture = newFuture[void]("write")
-  proc cb(res: int32) {.gcsafe.} =
+  proc cb(res: int32) =
     if res < 0:
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
     else:
       retFuture.complete()
-  var ev = create(Event)
-  ev.cb = cb
   # TODO: probably buffer can leak if it would destroyed before io_uring it consume
-  getSqe().write(cast[FileHandle](fd), buffer, len, offset).setUserData(ev)
+  getSqe().write(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
   return retFuture
 
 proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[int]) =
   var retFuture = newFuture[int]("read")
-  proc cb(res: int32) {.gcsafe.} =
+  proc cb(res: int32) =
     if res < 0:
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
     else:
       retFuture.complete(res)
-  var ev = create(Event)
-  ev.cb = cb
-  getSqe().read(cast[FileHandle](fd), buffer, len, offset).setUserData(ev)
+  getSqe().read(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
   return retFuture
