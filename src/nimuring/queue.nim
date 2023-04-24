@@ -92,9 +92,16 @@ proc `=destroy`(queue: var Queue) =
   if queue.sq.sqes != nil:
     uringUnmap(queue.sq.sqes, queue.params.sqEntries.int * sizeof(Sqe))
 
+
+proc `=sink`(dest: var Queue, source: Queue) =
+  # avoid unmapping uring object after moving
+  copyMem(dest.addr, source.unsafeAddr, sizeof Queue)
+
+proc `=copy`(dest: var Queue; source: Queue) {.error: "Queue can has only one owner".}
+
 proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
-proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): Queue =
+proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): owned(Queue) =
   assert sqEntries.isPowerOfTwo, "Entries must be in the power of two"
   var params = createShared(Params)
   params.flags = flags
