@@ -31,11 +31,10 @@ proc getLoop*(): Loop =
 
 template drainQueue(loop: Loop) =
   while loop.sqes.len != 0:
-    var loopSqe = loop.sqes.popFirst()
     var sqe = loop.q.getSqe()
     if sqe.isNil:
       break
-    sqe[] = loopSqe
+    sqe[] = loop.sqes.popFirst()
 
 proc poll*() =
   let loop = getLoop()
@@ -50,8 +49,6 @@ proc poll*() =
     ev.cb(cqe.res)
     dispose(ev.cell)
     dealloc(ev)
-  while loop.q.params.sqEntries - loop.q.sqReady == 0:
-    discard
 
 proc runForever*() =
   while true:

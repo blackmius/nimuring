@@ -11,7 +11,7 @@ proc run() {.async.} =
     i += 1
 
 
-const coroutines = 10000
+const coroutines = 100_000
 for _ in 0..<coroutines:
   discard run()
 

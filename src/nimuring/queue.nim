@@ -207,7 +207,7 @@ proc sqReady*(queue: var Queue): uint32 =
   ## Matches the implementation of io_uring_sq_ready in liburing.
   # Always use the shared ring state (i.e. head and not sqe_head) to avoid going out of sync,
   # see https://github.com/axboe/liburing/issues/92.
-  return queue.sq.tail[] - atomic_load_explicit(queue.sq.head, moAcquire)
+  return queue.sq.sqeTail - atomic_load_explicit(queue.sq.head, moAcquire)
 
 proc cqReady*(queue: var Queue): uint32 =
   ## Returns the number of CQEs in the completion queue, i.e. its length.
