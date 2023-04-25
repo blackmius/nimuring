@@ -10,7 +10,7 @@ type
     q: Queue
     sqes: Deque[Sqe]
   Event = object
-    cb: Callback
+    cb: owned(Callback)
     cell: ForeignCell
 
 var gLoop {.threadvar.}: owned Loop
