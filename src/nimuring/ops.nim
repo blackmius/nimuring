@@ -204,9 +204,9 @@ proc linkat*(sqe: SqePointer; oldDirFd: FileHandle; oldPath: string; newDirFd: F
   sqe.prepRw(OP_LINKAT, oldDirFd, cast[pointer](oldPath.cstring), newDirFd, cast[pointer](newPath.cstring))
 
 
-proc timeout*(sqe: SqePointer; ts: Timespec, count: uint32; flags: TimeoutFlags): SqePointer =
+proc timeout*(sqe: SqePointer; ts: ptr Timespec, count: uint32; flags: TimeoutFlags): SqePointer =
   sqe.op_flags.timeoutFlags = flags
-  sqe.prepRw(OP_TIMEOUT, -1, cast[pointer](ts.unsafeAddr), 1, count)
+  sqe.prepRw(OP_TIMEOUT, -1, cast[pointer](ts), 1, count)
 
 proc timeout_remove*(sqe: SqePointer; timeout_user_data: pointer; flags: TimeoutFlags): SqePointer =
   sqe.op_flags.timeoutFlags = flags

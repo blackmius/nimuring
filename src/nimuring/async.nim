@@ -99,3 +99,17 @@ proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futur
       retFuture.complete(res)
   getSqe().read(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
   return retFuture
+
+proc sleepAsync*(ms: int | float): owned(Future[void]) =
+  var retFuture = newFuture[void]("timeout")
+  var ts = create(Timespec)
+  ts.tv_sec = Time(ms / 1000)
+  ts.tv_nsec = (ms mod 1000) * 1_000_000
+  proc cb(res: int32) =
+    dealloc(ts)
+    retFuture.complete()
+  getSqe().timeout(ts, 0, {}).setUserData(event(cb))
+  return retFuture
+
+import std/async
+export async
