@@ -68,6 +68,7 @@ proc getSqe(): ptr Sqe =
 type AsyncFD* = distinct int
 
 proc event(cb: Callback): ptr Event {.inline.} =
+  # TODO: less malloc = more speed
   result = create(Event)
   result.cb = cb
   result.cell = protect(rawEnv(cb))
