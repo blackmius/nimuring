@@ -1,4 +1,5 @@
 import std/[deques, asyncfutures]
+import times, std/monotimes
 import os, posix
 
 import io_uring, queue, ops
@@ -102,13 +103,17 @@ proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futur
 
 proc sleepAsync*(ms: int | float): owned(Future[void]) =
   var retFuture = newFuture[void]("timeout")
+  let ns = (ms * 1_000_000).int64
+  let after = getMonoTime().ticks + ns
   var ts = create(Timespec)
-  ts.tv_sec = Time(ms / 1000)
-  ts.tv_nsec = (ms mod 1000) * 1_000_000
+  ts.tv_sec = posix.Time(after.int div 1_000_000_000)
+  ts.tv_nsec = after.int mod 1_000_000_000
   proc cb(res: int32) =
     dealloc(ts)
     retFuture.complete()
-  getSqe().timeout(ts, 0, {}).setUserData(event(cb))
+  # we are using TIMEOUT_ABS to avoid time mismatch
+  # if sqe enqueued not now (sqe is overflowed)
+  getSqe().timeout(ts, 0, {TIMEOUT_ABS}).setUserData(event(cb))
   return retFuture
 
 import std/async
