@@ -1,6 +1,5 @@
-import std/[deques, asyncfutures]
-import times, std/monotimes
-import os, posix
+import std/[deques, monotimes, asyncfutures, asyncstreams]
+import times, os, posix
 
 import io_uring, queue, ops
 
@@ -99,6 +98,33 @@ proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futur
     else:
       retFuture.complete(res)
   getSqe().read(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
+  return retFuture
+
+proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
+  var retFuture = newFuture[AsyncFD]("accept")
+  var accept_addr: SockAddr
+  var accept_addr_len: SockLen
+  proc cb(res: int32) =
+    if res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
+    else:
+      retFuture.complete(cast[AsyncFd](res))
+  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).setUserData(event(cb))
+  return retFuture
+
+proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
+  var retFuture = newFutureStream[AsyncFD]("accept")
+  var accept_addr: SockAddr
+  var accept_addr_len: SockLen
+  proc cb(res: int32) =
+    if res < 0:
+      retFuture.complete()
+    else:
+      discard retFuture.write(cast[AsyncFD](res))
+  # TODO: Как понять что надо закончить или произошел fail
+  # еще в обратную сторону если FutureStream был удален
+  # и еще флаг CQE_F_MORE и если его нет, надо тоже вырубать или переотправлять
+  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).setUserData(event(cb))
   return retFuture
 
 proc sleepAsync*(ms: int | float): owned(Future[void]) =
