@@ -3,6 +3,8 @@ import times, os, posix
 
 import io_uring, queue, ops
 
+## usage of self written pool instead of GC
+## gives us perfomance about 20%
 type
   Pool[T] = ref object
     arr: seq[T]
@@ -25,7 +27,10 @@ proc get[T](p: var Pool[T], ind: int): ptr T =
 
 
 type
-  Callback = proc (res: int32) {.closure.}
+  Callback = proc (res: Cqe): bool {.closure.}
+  ## Callback takes Cqe and return should loop dealloc Event
+  ## or we waiting another cqe
+  ## all resubmitting considered to be in that callback
   Event = object
     cb: owned(Callback)
     cell: ForeignCell
@@ -68,8 +73,8 @@ proc poll*() =
   # so it doesn't make sense to skip the iteration
   for cqe in cqes:
     let ev = loop.events.get(cqe.userData.int)
-    ev.cb(cqe.res)
-    loop.events.dealloc(cqe.userData.int)
+    if likely(not ev.cb(cqe)):
+      loop.events.dealloc(cqe.userData.int)
 
 proc runForever*() =
   while true:
@@ -98,16 +103,16 @@ proc event(sqe: ptr Sqe, cb: Callback) =
 
 proc nop*(): owned(Future[void]) =
   var retFuture = newFuture[void]("nop")
-  proc cb(res: int32) =
+  proc cb(cqe: Cqe): bool =
     retFuture.complete()
   getSqe().nop().event(cb)
   return retFuture
 
 proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[void]) =
   var retFuture = newFuture[void]("write")
-  proc cb(res: int32) =
-    if res < 0:
-      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
       retFuture.complete()
   # TODO: probably buffer can leak if it would destroyed before io_uring it consume
@@ -116,11 +121,11 @@ proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futu
 
 proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[int]) =
   var retFuture = newFuture[int]("read")
-  proc cb(res: int32) =
-    if res < 0:
-      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
-      retFuture.complete(res)
+      retFuture.complete(cqe.res)
   getSqe().read(cast[FileHandle](fd), buffer, len, offset).event(cb)
   return retFuture
 
@@ -128,11 +133,11 @@ proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
   var retFuture = newFuture[AsyncFD]("accept")
   var accept_addr: SockAddr
   var accept_addr_len: SockLen
-  proc cb(res: int32) =
-    if res < 0:
-      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
-      retFuture.complete(cast[AsyncFd](res))
+      retFuture.complete(cast[AsyncFd](cqe.res))
   getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).event(cb)
   return retFuture
 
@@ -140,11 +145,11 @@ proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
   var retFuture = newFutureStream[AsyncFD]("accept")
   var accept_addr: SockAddr
   var accept_addr_len: SockLen
-  proc cb(res: int32) =
-    if res < 0:
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
       retFuture.complete()
     else:
-      discard retFuture.write(cast[AsyncFD](res))
+      discard retFuture.write(cast[AsyncFD](cqe.res))
   # TODO: Как понять что надо закончить или произошел fail
   # еще в обратную сторону если FutureStream был удален
   # и еще флаг CQE_F_MORE и если его нет, надо тоже вырубать или переотправлять
@@ -158,7 +163,7 @@ proc sleepAsync*(ms: int | float): owned(Future[void]) =
   var ts = create(Timespec)
   ts.tv_sec = posix.Time(after.int div 1_000_000_000)
   ts.tv_nsec = after.int mod 1_000_000_000
-  proc cb(res: int32) =
+  proc cb(cqe: Cqe): bool =
     dealloc(ts)
     retFuture.complete()
   # we are using TIMEOUT_ABS to avoid time mismatch
