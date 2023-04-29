@@ -3,41 +3,25 @@ import times, os, posix
 
 import io_uring, queue, ops
 
-const chunkSize = 4096
-
 type
-  Chunk[T] = ref object
-    arr: array[chunkSize, T]
   Pool[T] = ref object
-    chunks: seq[Chunk[T]]
+    arr: seq[T]
     freelist: Deque[int]
-
-proc addChunk[T](p: var Pool[T]) =
-  p.chunks.add(new Chunk[T])
-  let lastIndex = (p.chunks.len-1) * chunkSize
-  for ind in 0..<chunkSize:
-    p.freelist.addLast(lastIndex + ind)
 
 proc newPool[T](): owned(Pool[T]) =
   result = new Pool[T]
-  result.addChunk()
 
 proc alloc[T](p: var Pool[T]): int =
   if p.freelist.len == 0:
-    p.addChunk()
+    p.arr.add(T())
+    return p.arr.len - 1
   return p.freelist.popFirst()
 
 proc dealloc[T](p: var Pool[T], ind: int) =
   p.freelist.addLast(ind)
 
 proc get[T](p: var Pool[T], ind: int): ptr T =
-  result = addr p.chunks[ind div chunkSize].arr[ind mod chunkSize]
-
-proc size[T](p: var Pool[T]): int =
-  return p.chunks.len * chunkSize
-
-proc len[T](p: var Pool[T]): int =
-  return p.size - p.freelist.len
+  result = addr p.arr[ind]
 
 
 type
