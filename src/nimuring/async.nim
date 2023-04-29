@@ -3,15 +3,52 @@ import times, os, posix
 
 import io_uring, queue, ops
 
+const chunkSize = 4096
+
+type
+  Chunk[T] = ref object
+    arr: array[chunkSize, T]
+  Pool[T] = ref object
+    chunks: seq[Chunk[T]]
+    freelist: Deque[int]
+
+proc addChunk[T](p: var Pool[T]) =
+  p.chunks.add(new Chunk[T])
+  let lastIndex = (p.chunks.len-1) * chunkSize
+  for ind in 0..<chunkSize:
+    p.freelist.addLast(lastIndex + ind)
+
+proc newPool[T](): owned(Pool[T]) =
+  result = new Pool[T]
+  result.addChunk()
+
+proc alloc[T](p: var Pool[T]): int =
+  if p.freelist.len == 0:
+    p.addChunk()
+  return p.freelist.popFirst()
+
+proc dealloc[T](p: var Pool[T], ind: int) =
+  p.freelist.addLast(ind)
+
+proc get[T](p: var Pool[T], ind: int): ptr T =
+  result = addr p.chunks[ind div chunkSize].arr[ind mod chunkSize]
+
+proc size[T](p: var Pool[T]): int =
+  return p.chunks.len * chunkSize
+
+proc len[T](p: var Pool[T]): int =
+  return p.size - p.freelist.len
+
 
 type
   Callback = proc (res: int32) {.closure.}
-  Loop = ref object
-    q: Queue
-    sqes: Deque[Sqe]
   Event = object
     cb: owned(Callback)
     cell: ForeignCell
+  Loop = ref object
+    q: Queue
+    sqes: Deque[Sqe]
+    events: Pool[Event]
 
 var gLoop {.threadvar.}: owned Loop
 
@@ -19,6 +56,7 @@ proc newLoop(): owned Loop =
   result = new(Loop)
   result.q = newQueue(4096, {SETUP_SQPOLL})
   result.sqes = initDeque[Sqe](4096)
+  result.events = newPool[Event]()
 
 proc setLoop*(loop: sink Loop) =
   gLoop = loop
@@ -45,10 +83,9 @@ proc poll*() =
   # new sqes can be added only from callbacks
   # so it doesn't make sense to skip the iteration
   for cqe in cqes:
-    let ev = cast[ptr Event](cqe.userData)
+    let ev = loop.events.get(cqe.userData.int)
     ev.cb(cqe.res)
-    dispose(ev.cell)
-    dealloc(ev)
+    loop.events.dealloc(cqe.userData.int)
 
 proc runForever*() =
   while true:
@@ -67,17 +104,19 @@ proc getSqe(): ptr Sqe =
 
 type AsyncFD* = distinct int
 
-proc event(cb: Callback): ptr Event {.inline.} =
-  # TODO: less malloc = more speed
-  result = create(Event)
-  result.cb = cb
-  result.cell = protect(rawEnv(cb))
+proc event(sqe: ptr Sqe, cb: Callback) =
+  let loop = getLoop()
+  let ind = loop.events.alloc()
+  var event = loop.events.get(ind)
+  event.cb = cb
+  event.cell = protect(rawEnv(cb))
+  sqe.setUserData(ind)
 
 proc nop*(): owned(Future[void]) =
   var retFuture = newFuture[void]("nop")
   proc cb(res: int32) =
     retFuture.complete()
-  getSqe().nop().setUserData(event(cb))
+  getSqe().nop().event(cb)
   return retFuture
 
 proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[void]) =
@@ -88,7 +127,7 @@ proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futu
     else:
       retFuture.complete()
   # TODO: probably buffer can leak if it would destroyed before io_uring it consume
-  getSqe().write(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
+  getSqe().write(cast[FileHandle](fd), buffer, len, offset).event(cb)
   return retFuture
 
 proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[int]) =
@@ -98,7 +137,7 @@ proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futur
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
     else:
       retFuture.complete(res)
-  getSqe().read(cast[FileHandle](fd), buffer, len, offset).setUserData(event(cb))
+  getSqe().read(cast[FileHandle](fd), buffer, len, offset).event(cb)
   return retFuture
 
 proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
@@ -110,7 +149,7 @@ proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(res))))
     else:
       retFuture.complete(cast[AsyncFd](res))
-  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).setUserData(event(cb))
+  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).event(cb)
   return retFuture
 
 proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
@@ -125,7 +164,7 @@ proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
   # TODO: Как понять что надо закончить или произошел fail
   # еще в обратную сторону если FutureStream был удален
   # и еще флаг CQE_F_MORE и если его нет, надо тоже вырубать или переотправлять
-  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).setUserData(event(cb))
+  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).event(cb)
   return retFuture
 
 proc sleepAsync*(ms: int | float): owned(Future[void]) =
@@ -140,7 +179,7 @@ proc sleepAsync*(ms: int | float): owned(Future[void]) =
     retFuture.complete()
   # we are using TIMEOUT_ABS to avoid time mismatch
   # if sqe enqueued not now (sqe is overflowed)
-  getSqe().timeout(ts, 0, {TIMEOUT_ABS}).setUserData(event(cb))
+  getSqe().timeout(ts, 0, {TIMEOUT_ABS}).event(cb)
   return retFuture
 
 import std/async
