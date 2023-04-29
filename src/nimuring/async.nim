@@ -33,7 +33,6 @@ type
   ## all resubmitting considered to be in that callback
   Event = object
     cb: owned(Callback)
-    cell: ForeignCell
   Loop = ref object
     q: Queue
     sqes: Deque[Sqe]
@@ -98,7 +97,6 @@ proc event(sqe: ptr Sqe, cb: Callback) =
   let ind = loop.events.alloc()
   var event = loop.events.get(ind)
   event.cb = cb
-  event.cell = protect(rawEnv(cb))
   sqe.setUserData(ind)
 
 proc nop*(): owned(Future[void]) =
