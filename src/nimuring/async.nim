@@ -3,8 +3,10 @@ import times, os, posix
 
 import io_uring, queue, ops
 
-## usage of self written pool instead of GC
-## gives us perfomance about 20%
+## Сохранинение Event в памяти GC
+## Ускоряет общий код на 50%
+## 1. нам не надо теперь хранить rawEnv замыкания
+## 2. не надо выделять и удалять структуры под события
 type
   Pool[T] = ref object
     arr: seq[T]
