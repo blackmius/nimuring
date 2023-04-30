@@ -159,19 +159,19 @@ proc send_zc*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; fl
   sqe.prepRw(OP_SENDZC, sock, buffer, len, 0)
 
 
-proc recvmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
-  sqe.op_flags.msgFlags = flags
+proc recvmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): SqePointer =
+  sqe.op_flags.msgFlags = flags.uint32
   sqe.prepRw(OP_RECVMSG, sock, cast[pointer](msghdr), 1, 0)
 
-proc recvmsg_multishot*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
+proc recvmsg_multishot*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): SqePointer =
   sqe.ioprio.incl(RECV_MULTISHOT)
   sqe.recvmsg(sock, msghdr, flags)
 
-proc sendmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
-  sqe.op_flags.msgFlags = flags
+proc sendmsg*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): SqePointer =
+  sqe.op_flags.msgFlags = flags.uint32
   sqe.prepRw(OP_SENDMSG, sock, cast[pointer](msghdr), 1, 0)
 
-proc sendmsg_zc*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): SqePointer =
+proc sendmsg_zc*(sqe: SqePointer; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): SqePointer =
   sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SENDMSG_ZC, sock, cast[pointer](msghdr), 1, 0)
 
@@ -420,23 +420,23 @@ proc send_zc*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: poin
   ## Returns a pointer to the SQE.
   q.getSqe().send_zc(sock, buffer, len, flags, zc_flags, buf_index).setUserData(userData)
 
-proc recvmsg*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc recvmsg*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `recvmsg(2)`.
   ## Returns a pointer to the SQE.
   q.getSqe().recvmsg(sock, msghdr, flags).setUserData(userData)
 
-proc recvmsg_multishot*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc recvmsg_multishot*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `recvmsg(2)`.
   ## Receive multiple messages on a socket,
   ## Returns a pointer to the SQE.
   q.getSqe().recvmsg_multishot(sock, msghdr, flags).setUserData(userData)
 
-proc sendmsg*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc sendmsg*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `sendmsg(2)`.
   ## Returns a pointer to the SQE.
   q.getSqe().sendmsg(sock, msghdr, flags).setUserData(userData)
 
-proc sendmsg_zc*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: uint32): ptr Sqe =
+proc sendmsg_zc*(q: var Queue; userData: UserData; sock: SocketHandle; msghdr: ptr Tmsghdr; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `sendmsg(2)`.
   ## zerocopy
   ## Returns a pointer to the SQE.
