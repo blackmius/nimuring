@@ -107,11 +107,11 @@ proc write_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec, offset: int = 0
   sqe.prepRw(OP_WRITE_FIXED, fd, iovec.iov_base, iovec.iov_len, offset)
 
 
-proc accept*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): SqePointer =
+proc accept*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): SqePointer =
   sqe.op_flags.acceptFlags = flags
   sqe.prepRw(OP_ACCEPT, sock, cast[pointer](`addr`), 0, cast[pointer](addrLen))
 
-proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): SqePointer =
+proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): SqePointer =
   sqe.ioprio.incl(RECVSEND_POLL_FIRST)
   sqe.accept(sock, `addr`, addrLen, flags)
 
@@ -138,19 +138,19 @@ proc poll_update*(sqe: SqePointer; oldUserData: UserData; newUserData: UserData;
   sqe.prepRw(OP_POLL_REMOVE, -1, oldUserData, int flags, cast[int](newUserData))
 
 
-proc recv*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32=0): SqePointer =
+proc recv*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): SqePointer =
   sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_RECV, sock, buffer, len, 0)
 
-proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32): SqePointer =
+proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint): SqePointer =
   sqe.ioprio.incl(RECV_MULTISHOT)
   sqe.recv(sock, buffer, len, flags)
 
-proc send*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32 = 0): SqePointer =
+proc send*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): SqePointer =
   sqe.op_flags.msgFlags = flags
   sqe.prepRw(OP_SEND, sock, buffer, len, 0)
 
-proc send*(sqe: SqePointer; sock: SocketHandle; str: string; flags: uint32 = 0): SqePointer =
+proc send*(sqe: SqePointer; sock: SocketHandle; str: string; flags: cint = 0): SqePointer =
   sqe.send(sock, cast[pointer](str.cstring), str.len, 0)
 
 proc send_zc*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: uint32; zc_flags: uint; buf_index: uint): SqePointer =
@@ -375,12 +375,12 @@ proc writev_fixed*(q: var Queue; userData: UserData; fd: FileHandle; iovec: IOVe
   ## Returns a pointer to the SQE so that you can further modify the SQE for advanced use cases.
   q.getSqe().write_fixed(fd, iovec, offset, bufferIndex).setUserData(userData)
 
-proc accept*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): ptr Sqe =
+proc accept*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform an `accept4(2)` on a socket.
   ## Returns a pointer to the SQE.
   q.getSqe().accept(sock, `addr`, addrLen, flags).setUserData(userData)
 
-proc accept_multishot*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: uint16): ptr Sqe =
+proc accept_multishot*(q: var Queue; userData: UserData; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform an `accept4(2)` on a socket.
   ## Accept multiple new connections on a socket.
   ## Returns a pointer to the SQE.
@@ -396,20 +396,20 @@ proc epoll_ctl*(q: var Queue; userData: UserData; epfd: FileHandle; fd: FileHand
   ## Returns a pointer to the SQE.
   q.getSqe().epoll_ctl(epfd, fd, op, ev).setUserData(userData)
 
-proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: uint32=0): ptr Sqe =
+proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `recv(2)`.
   ## Returns a pointer to the SQE.
   ## io_uring will recv directly into this buffer
   q.getSqe().recv(sock, buffer, len, flags).setUserData(userData)
 
-proc recv_multishot*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: uint32): ptr Sqe =
+proc recv_multishot*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `recv(2)`.
   ## Returns a pointer to the SQE.
   ## Receive multiple messages from a socket
   ## io_uring will recv directly into this buffer
   q.getSqe().recv_multishot(sock, buffer, len, flags).setUserData(userData)
 
-proc send*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: uint32 = 0): ptr Sqe =
+proc send*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `send(2)`.
   ## Returns a pointer to the SQE.
   q.getSqe().send(sock, buffer, len, flags).setUserData(userData)

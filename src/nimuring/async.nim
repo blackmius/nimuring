@@ -138,10 +138,10 @@ proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
       retFuture.complete(cast[AsyncFd](cqe.res))
-  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).event(cb)
+  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC).event(cb)
   return retFuture
 
-proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
+proc acceptStream*(fd: AsyncFD): owned(FutureStream[AsyncFD]) =
   var retFuture = newFutureStream[AsyncFD]("accept")
   var accept_addr: SockAddr
   var accept_addr_len: SockLen
@@ -153,7 +153,28 @@ proc acceptStream*(fd: AsyncFD,): owned(FutureStream[AsyncFD]) =
   # TODO: Как понять что надо закончить или произошел fail
   # еще в обратную сторону если FutureStream был удален
   # и еще флаг CQE_F_MORE и если его нет, надо тоже вырубать или переотправлять
-  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, 0).event(cb)
+  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC).event(cb)
+  return retFuture
+
+proc send*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Future[void]) =
+  var retFuture = newFuture[void]("send")
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
+    else:
+      retFuture.complete()
+  # TODO: probably buffer can leak if it would destroyed before io_uring it consume
+  getSqe().send(cast[SocketHandle](fd), buffer, len, flags).event(cb)
+  return retFuture
+
+proc recv*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Future[int]) =
+  var retFuture = newFuture[int]("read")
+  proc cb(cqe: Cqe): bool =
+    if cqe.res < 0:
+      retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
+    else:
+      retFuture.complete(cqe.res)
+  getSqe().recv(cast[SocketHandle](fd), buffer, len, flags).event(cb)
   return retFuture
 
 proc sleepAsync*(ms: int | float): owned(Future[void]) =
