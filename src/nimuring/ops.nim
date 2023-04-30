@@ -108,7 +108,7 @@ proc write_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec, offset: int = 0
 
 
 proc accept*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): SqePointer =
-  sqe.op_flags.acceptFlags = flags
+  sqe.op_flags.acceptFlags = flags.uint32
   sqe.prepRw(OP_ACCEPT, sock, cast[pointer](`addr`), 0, cast[pointer](addrLen))
 
 proc accept_multishot*(sqe: SqePointer; sock: SocketHandle, `addr`: ptr SockAddr, addrLen: ptr SockLen, flags: cint): SqePointer =
@@ -139,7 +139,7 @@ proc poll_update*(sqe: SqePointer; oldUserData: UserData; newUserData: UserData;
 
 
 proc recv*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): SqePointer =
-  sqe.op_flags.msgFlags = flags
+  sqe.op_flags.msgFlags = flags.uint32
   sqe.prepRw(OP_RECV, sock, buffer, len, 0)
 
 proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint): SqePointer =
@@ -147,7 +147,7 @@ proc recv_multishot*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: 
   sqe.recv(sock, buffer, len, flags)
 
 proc send*(sqe: SqePointer; sock: SocketHandle; buffer: pointer; len: int; flags: cint = 0): SqePointer =
-  sqe.op_flags.msgFlags = flags
+  sqe.op_flags.msgFlags = flags.uint32
   sqe.prepRw(OP_SEND, sock, buffer, len, 0)
 
 proc send*(sqe: SqePointer; sock: SocketHandle; str: string; flags: cint = 0): SqePointer =
