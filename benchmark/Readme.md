@@ -386,6 +386,15 @@ rps:    101650 data sent:   3177.61MB/s
 
 as buffer size increased, total rps decreasing but bandwidth increasing too
 
+```
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 60000
+clients: 1000 buffer_size: 60000
+sent: 1522395 recieved: 1521395
+rps:   50713.2 data sent:   2903.74MB/s
+```
+
+hmm, it has some maximum point
+
 one more remark. An increase in the simultaneously expected recvmsgs on the server also leads to an increase in the number of processed packets
 
 ``` sh
