@@ -275,3 +275,111 @@ Responses: 10965210
 | 128     | 94 324 | 288 035 | 279 301 | 239 588 | 207 864 | 169 701 |
 | 512     | 91 143 | 285 589 | 272 248 | 252 011 | 244 735 | 189 226 |
 | 1000    | 79 439 | 273 390 | 258 438 | 258 248 | 242 632 | 182 753 |
+
+# UDP
+
+1 thread client sending as much as possible udp packets to another socket
+maybe multithreaded support would increase the limits
+
+```
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./bench-udp.sh 8000
+Linux dterlyakhin-nix 5.15.0-69-generic #76~20.04.1-Ubuntu SMP Mon Mar 20 15:54:19 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux
+clients: 1 buffer_size: 1
+sent: 2526040 recieved: 2526039
+rps:   84201.3 data sent:      2.41MB
+clients: 50 buffer_size: 1
+sent: 10076359 recieved: 10076310
+rps:    335877 data sent:      9.61MB
+clients: 150 buffer_size: 1
+sent: 10223414 recieved: 10223270
+rps:    340776 data sent:      9.75MB
+clients: 300 buffer_size: 1
+sent: 10270877 recieved: 10270586
+rps:    342353 data sent:      9.80MB
+clients: 500 buffer_size: 1
+sent: 10469118 recieved: 10468624
+rps:    348954 data sent:      9.98MB
+clients: 1000 buffer_size: 1
+sent: 9939208 recieved: 9938224
+rps:    331274 data sent:      9.48MB
+clients: 1 buffer_size: 128
+sent: 2654863 recieved: 2654863
+rps:   88495.4 data sent:    324.08MB
+clients: 50 buffer_size: 128
+sent: 10038313 recieved: 10038264
+rps:    334609 data sent:   1225.38MB
+clients: 150 buffer_size: 128
+sent: 10069157 recieved: 10069024
+rps:    335634 data sent:   1229.15MB
+clients: 300 buffer_size: 128
+sent: 10103235 recieved: 10102949
+rps:    336765 data sent:   1233.31MB
+clients: 500 buffer_size: 128
+sent: 10258355 recieved: 10257869
+rps:    341929 data sent:   1252.24MB
+clients: 1000 buffer_size: 128
+sent: 9923498 recieved: 9922502
+rps:    330750 data sent:   1211.36MB
+clients: 1 buffer_size: 512
+sent: 2647308 recieved: 2647308
+rps:   88243.6 data sent:   1292.63MB
+clients: 50 buffer_size: 512
+sent: 9678361 recieved: 9678319
+rps:    322611 data sent:   4725.76MB
+clients: 150 buffer_size: 512
+sent: 9471166 recieved: 9471024
+rps:    315701 data sent:   4624.59MB
+clients: 300 buffer_size: 512
+sent: 9927062 recieved: 9926769
+rps:    330892 data sent:   4847.20MB
+clients: 500 buffer_size: 512
+sent: 9984720 recieved: 9984226
+rps:    332808 data sent:   4875.35MB
+clients: 1000 buffer_size: 512
+sent: 10115218 recieved: 10114225
+rps:    337141 data sent:   4939.07MB
+clients: 1 buffer_size: 1000
+sent: 2543449 recieved: 2543448
+rps:   84781.6 data sent:   2425.62MB
+clients: 50 buffer_size: 1000
+sent: 9105423 recieved: 9105376
+rps:    303513 data sent:   8683.61MB
+clients: 150 buffer_size: 1000
+sent: 9318986 recieved: 9318837
+rps:    310628 data sent:   8887.28MB
+clients: 300 buffer_size: 1000
+sent: 9264962 recieved: 9264668
+rps:    308822 data sent:   8835.76MB
+clients: 500 buffer_size: 1000
+sent: 9398076 recieved: 9397581
+rps:    313253 data sent:   8962.70MB
+clients: 1000 buffer_size: 1000
+sent: 9549964 recieved: 9548971
+rps:    318299 data sent:   9107.56MB
+```
+
+| clients | 1      | 50      | 150     | 300     | 500     | 1000    |
+|---------|--------|---------|---------|---------|---------|---------|
+| 1       | 84 201 | 335 877 | 340 776 | 342 353 | 348 954 | 331 274 |
+| 128     | 88 495 | 334 609 | 335 634 | 336 765 | 341 929 | 330 750 |
+| 512     | 88 243 | 322 611 | 315 701 | 330 892 | 332 808 | 337 141 |
+| 1000    | 84 781 | 303 513 | 310 628 | 308 822 | 313 253 | 318 299 |
+
+peak bandwidth is 9.1 GB/s with 1000 clients sending 1000 bytes each
+
+trying maximize this value
+
+```
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 2048
+clients: 1000 buffer_size: 2048
+sent: 8422791 recieved: 8421803
+rps:    280727 data sent:  16450.76MB
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 512 2048
+clients: 512 buffer_size: 2048
+sent: 8322419 recieved: 8321914
+rps:    277397 data sent:  16254.72MB
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 512 4096
+clients: 512 buffer_size: 4096
+sent: 7042823 recieved: 7042319
+rps:    234744 data sent:  27511.03MB
+```
