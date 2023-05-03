@@ -8,7 +8,7 @@ var q = newQueue(4096, {SETUP_SQPOLL})
 let server = newSocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
 
 const BufferSize = 4096
-const Pool = 8
+const Pool = 64
 
 try:
   server.bindAddr(port=Port(8000))
@@ -63,29 +63,6 @@ try:
         dealloc(msg.msg_iov.iov_base)
         dealloc(msg)
     q.submit()
-
-  # var msgSend = Tmsghdr(
-  #   msg_name: sa.addr,
-  #   msg_namelen: sl,
-  #   msg_iov: iovecSend.addr,
-  #   msg_iovlen: 1
-  # )
-
-  # q.sendmsg(1, serverFd, msgSend.addr, 0)
-
-  # var sa2: Sockaddr_storage
-  # var sl2: SockLen
-
-  # var bufferRecv: array[6, char]
-  # var iovecRecv = IOVec(iov_base: bufferRecv.addr, iov_len: bufferRecv.len.uint)
-  # var msgRecv = Tmsghdr(
-  #     msg_name: sa2.addr,
-  #     msg_namelen: sl2,
-  #     msg_iov: iovecRecv.addr,
-  #     msg_iovlen: 1
-  # )
-
-  # q.recvmsg(2, server.getFd, msgRecv.addr, 0)
 
 finally:
   # Socket has no graceful =destroy

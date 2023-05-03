@@ -73,7 +73,7 @@ try:
     let duration = getMonoTime().ticks - timeStart
     if duration > waitDuration:
       echo fmt"sent: {sent} recieved: {recieved}"
-      echo fmt"rps: {recieved / time:9} data sent: {bytesTransfered/1024/1024:9.2f}MB"
+      echo fmt"rps: {recieved / time:9} data sent: {bytesTransfered/time/1024/1024:9.2f}MB/s"
       quit 0
       # timeStart = getMonoTime().ticks
 finally:

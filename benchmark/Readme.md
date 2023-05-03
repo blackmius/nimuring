@@ -369,19 +369,27 @@ peak bandwidth is 300 MB/s with 1000 clients sending 1000 bytes each
 
 trying maximize this value
 
-```
-dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 2048
-clients: 1000 buffer_size: 2048
-sent: 8422791 recieved: 8421803
-rps:    280727 data sent:  16450.76MB
-dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 512 2048
-clients: 512 buffer_size: 2048
-sent: 8322419 recieved: 8321914
-rps:    277397 data sent:  16254.72MB
-dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 512 4096
-clients: 512 buffer_size: 4096
-sent: 7042823 recieved: 7042319
-rps:    234744 data sent:  27511.03MB
+``` sh
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 8192
+clients: 1000 buffer_size: 8192
+sent: 5266980 recieved: 5265981
+rps:    175533 data sent:   1371.61MB/s
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 16384
+clients: 1000 buffer_size: 16384
+sent: 4353558 recieved: 4352559
+rps:    145085 data sent:   2267.48MB/s
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 32768
+clients: 1000 buffer_size: 32768
+sent: 3050508 recieved: 3049509
+rps:    101650 data sent:   3177.61MB/s
 ```
 
-peak 27.5GB per 30 seconds so it near 1GB per second
+as buffer size increased, total rps decreasing but bandwidth increasing too
+
+one more remark. An increase in the simultaneously expected recvmsgs on the server also leads to an increase in the number of processed packets
+
+``` sh
+clients: 1000 buffer_size: 1
+sent: 10554258 recieved: 10553331
+rps:    351778 data sent:      0.34MB/s
+```
