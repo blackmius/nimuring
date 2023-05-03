@@ -365,7 +365,7 @@ rps:    318299 data sent:   9107.56MB
 | 512     | 88 243 | 322 611 | 315 701 | 330 892 | 332 808 | 337 141 |
 | 1000    | 84 781 | 303 513 | 310 628 | 308 822 | 313 253 | 318 299 |
 
-peak bandwidth is 9.1 GB/s with 1000 clients sending 1000 bytes each
+peak bandwidth is 300 MB/s with 1000 clients sending 1000 bytes each
 
 trying maximize this value
 
@@ -383,3 +383,5 @@ clients: 512 buffer_size: 4096
 sent: 7042823 recieved: 7042319
 rps:    234744 data sent:  27511.03MB
 ```
+
+peak 27.5GB per 30 seconds so it near 1GB per second
