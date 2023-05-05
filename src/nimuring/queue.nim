@@ -83,14 +83,14 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
 
 proc `=destroy`(queue: var Queue) =
   ## tear down the queue
-  if queue.params != nil:
-    deallocShared(queue.params)
   if queue.cq.ring != nil:
     uringUnmap(queue.cq.ring, queue.params.cqEntries.int * sizeof(Cqe))
   if queue.sq.ring != nil:
     uringUnmap(queue.sq.ring, queue.params.sqEntries.int * sizeof(pointer))
   if queue.sq.sqes != nil:
     uringUnmap(queue.sq.sqes, queue.params.sqEntries.int * sizeof(Sqe))
+  if queue.params != nil:
+    deallocShared(queue.params)
 
 
 proc `=sink`(dest: var Queue, source: Queue) =
