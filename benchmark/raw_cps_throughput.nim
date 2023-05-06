@@ -13,7 +13,10 @@ proc nop(c: MyCont): MyCont {.cpsMagic.} =
 proc run() {.cps: MyCont.} =
   while true:
     nop()
-    i += 1
+    var j = 0
+    while j < 10000:
+      i += 1
+      j += 1
 
 
 const coroutinesCount = 100_000

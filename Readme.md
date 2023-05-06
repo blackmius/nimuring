@@ -42,6 +42,8 @@ this library base on liburing as source of truth about io_uring.
   couldn't integrate into asyncdispatch, so I had to write my own.
   however, it works faster than the standard in all plans from timers to real work with IO
 
-- [] CPS integration \
+- [-] CPS integration \
   CPS works 6 times faster, judging by benchmarks, so it makes sense to integrate io_uring into it,
   since the continuations logic fits well with io interrupts
+
+  only until you prefer not to use inner loops....
