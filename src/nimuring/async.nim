@@ -81,7 +81,24 @@ proc runForever*() =
   while true:
     poll()
 
-proc getSqe(): ptr Sqe =
+type AsyncFD* = distinct int
+
+proc event*(cb: Callback): ptr Sqe {.discardable.} =
+  ## To create your own IO closures
+  runnableExamples:
+    proc nop(): owned(Future[void]) =
+      ## Example wrapping callback into a future
+      var retFuture = newFuture[void]("nop")
+      proc cb(cqe: Cqe): bool =
+        retFuture.complete()
+      event(cb)
+      return retFuture
+
+    # enqueue an raw Callback
+    proc pureCb(cqe: Cqe): bool =
+      echo cqe
+    event(cb)
+
   let loop = getLoop()
   loop.drainQueue()
   # move external queue before getting new sqe
@@ -89,23 +106,20 @@ proc getSqe(): ptr Sqe =
   result = loop.q.getSqe()
   if result.isNil:
     loop.sqes.addLast(Sqe())
-    return addr loop.sqes.peekLast()
-
-
-type AsyncFD* = distinct int
-
-proc event(sqe: ptr Sqe, cb: Callback) =
-  let loop = getLoop()
+    result = addr loop.sqes.peekLast()
+  
   let ind = loop.events.alloc()
   var event = loop.events.get(ind)
   event.cb = cb
-  sqe.setUserData(ind)
+
+  result.setUserData(ind)
 
 proc nop*(): owned(Future[void]) =
+  ## A simple, but nevertheless useful request
   var retFuture = newFuture[void]("nop")
   proc cb(cqe: Cqe): bool =
     retFuture.complete()
-  getSqe().nop().event(cb)
+  event(cb)
   return retFuture
 
 proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[void]) =
@@ -116,7 +130,7 @@ proc write*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futu
     else:
       retFuture.complete()
   # TODO: probably buffer can leak if it would destroyed before io_uring it consume
-  getSqe().write(cast[FileHandle](fd), buffer, len, offset).event(cb)
+  event(cb).write(cast[FileHandle](fd), buffer, len, offset)
   return retFuture
 
 proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Future[int]) =
@@ -126,7 +140,7 @@ proc read*(fd: AsyncFD; buffer: pointer; len: int; offset: int = 0): owned(Futur
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
       retFuture.complete(cqe.res)
-  getSqe().read(cast[FileHandle](fd), buffer, len, offset).event(cb)
+  event(cb).read(cast[FileHandle](fd), buffer, len, offset)
   return retFuture
 
 proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
@@ -138,7 +152,7 @@ proc accept*(fd: AsyncFD): owned(Future[AsyncFD]) =
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
       retFuture.complete(cast[AsyncFd](cqe.res))
-  getSqe().accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC).event(cb)
+  event(cb).accept(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC)
   return retFuture
 
 proc acceptStream*(fd: AsyncFD): owned(FutureStream[AsyncFD]) =
@@ -148,12 +162,15 @@ proc acceptStream*(fd: AsyncFD): owned(FutureStream[AsyncFD]) =
   proc cb(cqe: Cqe): bool =
     if cqe.res < 0:
       retFuture.complete()
+      return true
     else:
       discard retFuture.write(cast[AsyncFD](cqe.res))
-  # TODO: Как понять что надо закончить или произошел fail
-  # еще в обратную сторону если FutureStream был удален
-  # и еще флаг CQE_F_MORE и если его нет, надо тоже вырубать или переотправлять
-  getSqe().accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC).event(cb)
+      if not cqe.flags.contains(CQE_F_MORE):
+        # application should look at the CQE flags and see if
+        # IORING_CQE_F_MORE is set on completion as an indication of
+        # whether or not the accept request will generate further CQEs.
+        event(cb).accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC)
+  event(cb).accept_multishot(cast[SocketHandle](fd), addr accept_addr, addr accept_addr_len, O_CLOEXEC)
   return retFuture
 
 proc send*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Future[void]) =
@@ -164,7 +181,7 @@ proc send*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Futur
     else:
       retFuture.complete()
   # TODO: probably buffer can leak if it would destroyed before io_uring it consume
-  getSqe().send(cast[SocketHandle](fd), buffer, len, flags).event(cb)
+  event(cb).send(cast[SocketHandle](fd), buffer, len, flags)
   return retFuture
 
 proc recv*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Future[int]) =
@@ -174,7 +191,7 @@ proc recv*(fd: AsyncFD; buffer: pointer; len: int; flags: cint = 0): owned(Futur
       retFuture.fail(newException(OSError, osErrorMsg(OSErrorCode(cqe.res))))
     else:
       retFuture.complete(cqe.res)
-  getSqe().recv(cast[SocketHandle](fd), buffer, len, flags).event(cb)
+  event(cb).recv(cast[SocketHandle](fd), buffer, len, flags)
   return retFuture
 
 proc sleepAsync*(ms: int | float): owned(Future[void]) =
@@ -189,7 +206,7 @@ proc sleepAsync*(ms: int | float): owned(Future[void]) =
     retFuture.complete()
   # we are using TIMEOUT_ABS to avoid time mismatch
   # if sqe enqueued not now (sqe is overflowed)
-  getSqe().timeout(ts, 0, {TIMEOUT_ABS}).event(cb)
+  event(cb).timeout(ts, 0, {TIMEOUT_ABS})
   return retFuture
 
 import std/async
