@@ -13,16 +13,21 @@ this library base on liburing as source of truth about io_uring.
   - [x] getting a CQEs in a convenient form (batching)
 
 - [ ] OPS
-  - [ ] SQE Builder \
+  - [-] SQE Builder \
        something similar to what was done in rust
        https://docs.rs/io-uring/latest/io_uring/squeue/struct.Entry.html
+       it turned out that there is not much that can be built, since the calls copy syscall, then the easiest thing is to become like them
   - [x] a simple naive way to fill the queue, as it is done in zig
         https://github.com/ziglang/zig/blob/master/lib/std/os/linux/io_uring.zig
-  - [ ] Extended queue \
+  - [x] Extended queue \
     To avoid SQ overflow, it would be nice to come up with something like an additional dynamic queue on top of io_uring itself
+    look at the implementation of async
   - [ ] Multishot ops
+    not tested yet
   - [ ] zerocopy send/recv
-  - [ ] accept/connect/send/recv compatability with net module
+    not tested yet
+  - [x] accept/connect/send/recv compatability with net module
+    see examples or benchmarks
 
 - [ ] Register
   - [x] buffers
@@ -33,8 +38,10 @@ this library base on liburing as source of truth about io_uring.
   compare the resulting wrappers with the great documentation
   https://unixism.net/loti/ref-liburing/submission.html
 
-- [ ] Nim asyncdispatch integration \
-  so far, there are not even any ideas how this could be done.
-  On the first reading of its sources, I did not find a place,
-  such as in libuv.prepare, which is executed every tick of the cycle
+- [x] Nim async/await integration \
+  couldn't integrate into asyncdispatch, so I had to write my own.
+  however, it works faster than the standard in all plans from timers to real work with IO
 
+- [] CPS integration \
+  CPS works 6 times faster, judging by benchmarks, so it makes sense to integrate io_uring into it,
+  since the continuations logic fits well with io interrupts
