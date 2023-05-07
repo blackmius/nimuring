@@ -44,4 +44,18 @@ peak bandwidth is 300 MB/s with 1000 clients sending 1000 bytes each
 
 trying maximize this value. as buffer size increased, total rps decreasing but bandwidth increasing too
 
+Best run for bandwidth:
+``` sh
+clients: 1000 buffer_size: 32768
+sent: 3050508 recieved: 3049509
+rps:    101650 data sent:   3177.61MB/s
+```
+
+Best run for rps:
+``` sh
+clients: 1000 buffer_size: 1
+sent: 10554258 recieved: 10553331
+rps:    351778 data sent:      0.34MB/s
+```
+
 one more remark. An increase in the simultaneously expected recvmsgs on the server also leads to an increase in the number of processed packets
