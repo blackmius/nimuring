@@ -3,8 +3,10 @@
 This is a pure implementation of io_uring in nim.
 
 The library was based on several implementations of io_uring in other languages at once,
-such as [libring](https://github.com/axboe/liburing) (the original library from the author of io_uring),
-the [implementation of io_uring in the Zig language](https://github.com/ziglang/zig/blob/master/lib/std/os/linux/io_uring.zig), as well as the [implementation in Rust](https://docs.rs/io-uring/latest/io_uring/index.html).
+such as:
+* [liubring](https://github.com/axboe/liburing) (the original library from the author of io_uring),
+* the [implementation of io_uring in the Zig language](https://github.com/ziglang/zig/blob/master/lib/std/os/linux/io_uring.zig),
+* as well as the [implementation in Rust](https://docs.rs/io-uring/latest/io_uring/index.html).
 
 Mostly on liburing
 
