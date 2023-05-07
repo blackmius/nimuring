@@ -19,3 +19,9 @@ Because of this, another event loop was implemented. But the interface for using
 ## Documentation
 
 Now there is no way to display the documentation in an acceptable form, so use man and read the code.
+
+## Examples
+
+examples can be found in `examples` folder
+see examples of udp and tcp server in [benchmark folder](./benchmark/)
+and also check the usage of OPS in [./tests/ops](./tests/ops/)

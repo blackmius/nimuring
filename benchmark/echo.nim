@@ -36,7 +36,7 @@ proc run() =
     var acceptEv = create(Event)
     acceptEv.typ = eAccept
     acceptEv.time = cpuTime()
-    q.accept(userData=cast[pointer](acceptEv), server.getFd, addr accept_addr, addr accept_addr_len, O_NONBLOCK.uint16)
+    q.accept(userData=cast[pointer](acceptEv), server.getFd, addr accept_addr, addr accept_addr_len, O_NONBLOCK)
   q.submit()
 
   while true:
@@ -55,7 +55,7 @@ proc run() =
         var acceptEv = create(Event)
         acceptEv.typ = eAccept
         acceptEv.time = cpuTime()
-        q.accept(userData=cast[pointer](acceptEv), server.getFd, addr accept_addr, addr accept_addr_len, O_NONBLOCK.uint16)
+        q.accept(userData=cast[pointer](acceptEv), server.getFd, addr accept_addr, addr accept_addr_len, O_NONBLOCK)
         # read what new connection sent
         var readEv = create(Event)
         readEv.typ = eRecv

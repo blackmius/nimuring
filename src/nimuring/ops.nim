@@ -12,6 +12,7 @@ import posix
 import epoll
 import std/endians
 import os
+import nativesockets
 
 type SqePointer = ref Sqe or ptr Sqe
 type UserData*[T] = pointer | SomeNumber | ptr T
@@ -291,9 +292,9 @@ proc getxattr*(sqe: SqePointer; name: string; buf: pointer; len: int; path: stri
   sqe.cmd.addr3 = cast[pointer](path.cstring)
   sqe.prepRw(OP_GETXATTR, 0, cast[pointer](name.cstring), len, buf)
 
-proc socket*(sqe: SqePointer; domain: int; `type`: int; protocol: int; flags: int = 0): SqePointer =
+proc socket*(sqe: SqePointer; domain: Domain; `type`: SockType; protocol: Protocol; flags: int = 0): SqePointer =
   sqe.op_flags.rw_flags = flags
-  sqe.prepRw(OP_SOCKET, domain, nil, protocol, `type`)
+  sqe.prepRw(OP_SOCKET, domain.cint, nil, protocol.cint, `type`.cint)
 
   # TODO: direct
 
@@ -401,6 +402,10 @@ proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer
   ## Returns a pointer to the SQE.
   ## io_uring will recv directly into this buffer
   q.getSqe().recv(sock, buffer, len, flags).setUserData(userData)
+
+proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; size: int; flags: cint = 0): owned(string) =
+  result = newString(size)
+  q.getSqe().recv(sock, result.cstring, size, flags).setUserData(userData)
 
 proc recv_multishot*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer; len: int; flags: cint): ptr Sqe =
   ## Queues (but does not submit) an SQE to perform a `recv(2)`.
@@ -603,5 +608,9 @@ proc sync_file_range*(q: var Queue; userData: UserData; fd: FileHandle; len: int
   ## whatever it means
   ## Returns a pointer to the SQE.
   q.getSqe().sync_file_range(fd, len, flags, offset).setUserData(userData)
+
+proc socket*(q: var Queue; userData: UserData; domain: Domain; `type`: SockType; protocol: Protocol; flags: int = 0): ptr Sqe =
+  ## Creating new socket
+  q.getSqe().socket(domain, `type`, protocol, flags).setUserData(userData)
 
 {.pop.}
