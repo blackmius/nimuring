@@ -1,5 +1,5 @@
+import posix, os
 import io_uring
-import posix
 
 from atomics import MemoryOrder
 {.push, header: "<stdatomic.h>", importc.}
@@ -8,6 +8,27 @@ proc atomic_store_explicit[T, A](location: ptr A; desired: T;
     order: MemoryOrder = moSequentiallyConsistent)
 proc atomic_thread_fence(order: MemoryOrder)
 {.pop.}
+
+proc `+`(p: pointer; i: SomeInteger): pointer =
+  result = cast[pointer](cast[uint](p) + i.uint)
+
+proc uringMap(offset: Off; fd: FileHandle; begin: uint32;
+               count: uint32; typ: typedesc): pointer =
+  let
+    size = int (begin + count * sizeof(typ).uint32)
+  result = mmap(nil, size,
+                ProtRead or ProtWrite, MapShared or MapPopulate,
+                fd.cint, offset)
+  if result == MapFailed:
+    result = nil
+    raiseOSError osLastError()
+
+proc uringUnmap(p: pointer; size: int) =
+  ## interface to tear down some memory (probably mmap'd)
+  let
+    code = munmap(p, size)
+  if code < 0:
+    raiseOSError osLastError()
 
 type
   Queue* = object
