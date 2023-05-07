@@ -12,9 +12,9 @@ proc atomic_thread_fence(order: MemoryOrder)
 type
   Queue* = object
     params*: ptr Params
-    fd: FileHandle
-    cq: CqRing
-    sq: SqRing
+    fd*: FileHandle
+    cq*: CqRing
+    sq*: SqRing
 
   # convenience typeclass
   Offsets = SqringOffsets or CqringOffsets
@@ -23,12 +23,12 @@ type
     head: ptr uint32
     tail: ptr uint32
     mask: ptr uint32
-    entries: ptr uint32
-    size: uint32
+    entries*: ptr uint32
+    size*: uint32
     ring: pointer
 
   SqRing = object of Ring
-    flags: ptr SqringFlags
+    flags*: ptr SqringFlags
     dropped: pointer
     array: pointer
     sqes: ptr Sqe
@@ -41,8 +41,8 @@ type
     sqeHead: uint32
 
   CqRing = object of Ring
-    flags: ptr CqringFlags
-    overflow: pointer
+    flags*: ptr CqringFlags
+    overflow*: ptr int
     cqes: pointer
 
 const
@@ -62,7 +62,7 @@ proc newRing(fd: FileHandle; offset: ptr CqringOffsets; size: uint32): CqRing =
   let ring = OffCqRing.uringMap(fd, offset.cqes, size, Cqe)
   result.ring = ring
   result.cqes = ring + offset.cqes
-  result.overflow = ring + offset.overflow
+  result.overflow = cast[ptr int](ring + offset.overflow)
   result.flags = cast[ptr CqringFlags](ring + offset.flags)
   result.init offset
 
