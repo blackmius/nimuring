@@ -1,0 +1,106 @@
+```
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./bench-udp.sh 8000
+Linux dterlyakhin-nix 5.15.0-69-generic #76~20.04.1-Ubuntu SMP Mon Mar 20 15:54:19 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux
+clients: 1 buffer_size: 1
+sent: 2526040 recieved: 2526039
+rps:   84201.3 data sent:      2.41MB
+clients: 50 buffer_size: 1
+sent: 10076359 recieved: 10076310
+rps:    335877 data sent:      9.61MB
+clients: 150 buffer_size: 1
+sent: 10223414 recieved: 10223270
+rps:    340776 data sent:      9.75MB
+clients: 300 buffer_size: 1
+sent: 10270877 recieved: 10270586
+rps:    342353 data sent:      9.80MB
+clients: 500 buffer_size: 1
+sent: 10469118 recieved: 10468624
+rps:    348954 data sent:      9.98MB
+clients: 1000 buffer_size: 1
+sent: 9939208 recieved: 9938224
+rps:    331274 data sent:      9.48MB
+clients: 1 buffer_size: 128
+sent: 2654863 recieved: 2654863
+rps:   88495.4 data sent:    324.08MB
+clients: 50 buffer_size: 128
+sent: 10038313 recieved: 10038264
+rps:    334609 data sent:   1225.38MB
+clients: 150 buffer_size: 128
+sent: 10069157 recieved: 10069024
+rps:    335634 data sent:   1229.15MB
+clients: 300 buffer_size: 128
+sent: 10103235 recieved: 10102949
+rps:    336765 data sent:   1233.31MB
+clients: 500 buffer_size: 128
+sent: 10258355 recieved: 10257869
+rps:    341929 data sent:   1252.24MB
+clients: 1000 buffer_size: 128
+sent: 9923498 recieved: 9922502
+rps:    330750 data sent:   1211.36MB
+clients: 1 buffer_size: 512
+sent: 2647308 recieved: 2647308
+rps:   88243.6 data sent:   1292.63MB
+clients: 50 buffer_size: 512
+sent: 9678361 recieved: 9678319
+rps:    322611 data sent:   4725.76MB
+clients: 150 buffer_size: 512
+sent: 9471166 recieved: 9471024
+rps:    315701 data sent:   4624.59MB
+clients: 300 buffer_size: 512
+sent: 9927062 recieved: 9926769
+rps:    330892 data sent:   4847.20MB
+clients: 500 buffer_size: 512
+sent: 9984720 recieved: 9984226
+rps:    332808 data sent:   4875.35MB
+clients: 1000 buffer_size: 512
+sent: 10115218 recieved: 10114225
+rps:    337141 data sent:   4939.07MB
+clients: 1 buffer_size: 1000
+sent: 2543449 recieved: 2543448
+rps:   84781.6 data sent:   2425.62MB
+clients: 50 buffer_size: 1000
+sent: 9105423 recieved: 9105376
+rps:    303513 data sent:   8683.61MB
+clients: 150 buffer_size: 1000
+sent: 9318986 recieved: 9318837
+rps:    310628 data sent:   8887.28MB
+clients: 300 buffer_size: 1000
+sent: 9264962 recieved: 9264668
+rps:    308822 data sent:   8835.76MB
+clients: 500 buffer_size: 1000
+sent: 9398076 recieved: 9397581
+rps:    313253 data sent:   8962.70MB
+clients: 1000 buffer_size: 1000
+sent: 9549964 recieved: 9548971
+rps:    318299 data sent:   9107.56MB
+```
+
+``` sh
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 8192
+clients: 1000 buffer_size: 8192
+sent: 5266980 recieved: 5265981
+rps:    175533 data sent:   1371.61MB/s
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 16384
+clients: 1000 buffer_size: 16384
+sent: 4353558 recieved: 4352559
+rps:    145085 data sent:   2267.48MB/s
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 32768
+clients: 1000 buffer_size: 32768
+sent: 3050508 recieved: 3049509
+rps:    101650 data sent:   3177.61MB/s
+```
+
+``` sh
+clients: 1000 buffer_size: 1
+sent: 10554258 recieved: 10553331
+rps:    351778 data sent:      0.34MB/s
+```
+
+```
+dterlyakhin@dterlyakhin-nix:~/projects/nimuring/benchmark$ ./udp_client 0.0.0.0 8000 1000 60000
+clients: 1000 buffer_size: 60000
+sent: 1522395 recieved: 1521395
+rps:   50713.2 data sent:   2903.74MB/s
+```
+
+hmm, it has some maximum point
