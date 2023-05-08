@@ -1,13 +1,7 @@
 import posix, os
 import io_uring
 
-from atomics import MemoryOrder
-{.push, header: "<stdatomic.h>", importc.}
-proc atomic_load_explicit[T](location: ptr T; order: MemoryOrder): T
-proc atomic_store_explicit[T, A](location: ptr A; desired: T;
-    order: MemoryOrder = moSequentiallyConsistent)
-proc atomic_thread_fence(order: MemoryOrder)
-{.pop.}
+import atomics
 
 proc `+`(p: pointer; i: SomeInteger): pointer =
   result = cast[pointer](cast[uint](p) + i.uint)
@@ -41,15 +35,15 @@ type
   Offsets = SqringOffsets or CqringOffsets
 
   Ring = object of RootObj
-    head: ptr uint32
-    tail: ptr uint32
+    head: ptr Atomic[uint32]
+    tail: ptr Atomic[uint32]
     mask: ptr uint32
     entries*: ptr uint32
     size*: uint32
     ring: pointer
 
   SqRing = object of Ring
-    flags*: ptr SqringFlags
+    flags*: ptr Atomic[SqringFlags]
     dropped: pointer
     array: pointer
     sqes: ptr Sqe
@@ -71,8 +65,8 @@ const
 
 proc init(ring: var Ring; offset: ptr Offsets) =
   ## setup common properties of a Ring given a struct of Offsets
-  ring.head = cast[ptr uint32](ring.ring + offset.head)
-  ring.tail = cast[ptr uint32](ring.ring + offset.tail)
+  ring.head = cast[ptr Atomic[uint32]](ring.ring + offset.head)
+  ring.tail = cast[ptr Atomic[uint32]](ring.ring + offset.tail)
   ring.mask = cast[ptr uint32](ring.ring + offset.ring_mask)
   ring.entries = cast[ptr uint32](ring.ring + offset.ring_entries)
   assert offset.ring_entries > 0
@@ -95,7 +89,7 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
   result.ring = ring
   result.dropped = ring + offset.dropped
   result.array = ring + offset.array
-  result.flags = cast[ptr SqringFlags](ring + offset.flags)
+  result.flags = cast[ptr Atomic[SqringFlags]](ring + offset.flags)
   # Directly map SQ slots to SQEs
   for i in 0..size:
     cast[ptr UncheckedArray[uint32]](result.array)[i] = i
@@ -149,9 +143,9 @@ proc sqFlush(queue: var Queue): int =
     queue.sq.sqe_head = tail
     # Ensure kernel sees the SQE updates before the tail update.
     if SetupSqpoll in queue.params.flags:
-      atomic_store_explicit(queue.sq.tail, tail, moRelaxed)
+      queue.sq.tail[].store(tail, moRelaxed)
     else:
-      atomic_store_explicit(queue.sq.tail, tail, moRelease)
+      queue.sq.tail[].store(tail, moRelease)
   # This _may_ look problematic, as we're not supposed to be reading
   # SQ->head without acquire semantics. When we're in SQPOLL mode, the
   # kernel submitter could be updating this right now. For non-SQPOLL,
@@ -161,7 +155,7 @@ proc sqFlush(queue: var Queue): int =
   # atomically. Worst case, we're going to be over-estimating what
   # we can submit. The point is, we need to be able to deal with this
   # situation regardless of any perceived atomicity.
-  return int(tail - queue.sq.head[])
+  return int(tail - cast[uint32](queue.sq.head[]))
 
 proc getSqe*(queue: var Queue): ptr Sqe {.inline.} =
   ## Return an sqe to fill. Application must later call queue.submit()
@@ -176,9 +170,9 @@ proc getSqe*(queue: var Queue): ptr Sqe {.inline.} =
   if SetupSqe128 in queue.params.flags:
     shift = 1
   if SetupSqpoll in queue.params.flags:
-    head = atomic_load_explicit(queue.sq.head, moRelaxed)
+    head = queue.sq.head[].load(moRelaxed)
   else:
-    head = atomic_load_explicit(queue.sq.head, moAcquire)
+    head = queue.sq.head[].load(moAcquire)
   if next - head <= queue.sq.entries[]:
     let index = (queue.sq.sqe_tail and queue.sq.mask[]) shl shift
     result = cast[ptr Sqe](queue.sq.sqes + index.int * sizeof(Sqe))
@@ -196,14 +190,14 @@ proc sqNeedsEnter(queue: var Queue; submit: int; flags: var EnterFlags): bool =
     return true
   # Ensure the kernel can see the store to the SQ tail before we read
   # the flags.
-  atomic_thread_fence(moSequentiallyConsistent)
-  if SqNeedWakeup in atomic_load_explicit[SqringFlags](queue.sq.flags, moRelaxed):
+  fence(moSequentiallyConsistent)
+  if SqNeedWakeup in queue.sq.flags[].load(moRelaxed):
     flags.incl(EnterSqWakeup)
     return true
   return false;
 
 template cqNeedsFlush(queue: var Queue): bool =
-  {SqCqOverflow, SqTaskrun} <= atomic_load_explicit[SqringFlags](queue.sq.flags, moRelaxed)
+  {SqCqOverflow, SqTaskrun} <= queue.sq.flags[].load(moRelaxed)
 
 template cqNeedsEnter(queue: var Queue): bool =
   SetupIopoll in queue.params.flags or queue.cqNeedsFlush
@@ -230,13 +224,13 @@ proc sqReady*(queue: var Queue): uint32 =
   ## Matches the implementation of io_uring_sq_ready in liburing.
   # Always use the shared ring state (i.e. head and not sqe_head) to avoid going out of sync,
   # see https://github.com/axboe/liburing/issues/92.
-  return queue.sq.sqeTail - atomic_load_explicit(queue.sq.head, moAcquire)
+  return queue.sq.sqeTail - queue.sq.head[].load(moAcquire)
 
 proc cqReady*(queue: var Queue): uint32 =
   ## Returns the number of CQEs in the completion queue, i.e. its length.
   ## These are CQEs that the application is yet to consume.
   ## Matches the implementation of io_uring_cq_ready in liburing.
-  return atomic_load_explicit(queue.cq.tail, moAcquire) - queue.cq.head[]
+  return queue.cq.tail[].load(moAcquire) - cast[uint32](queue.cq.head[])
 
 proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   ## Copies as many CQEs as are ready.
@@ -256,7 +250,7 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   if ready == 0:
     return @[]
   var
-    head = queue.cq.head[]
+    head = cast[uint32](queue.cq.head[])
     tail = head + ready
   let
     startIndex = int(head and queue.cq.mask[])
@@ -269,7 +263,7 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
     copyMem(result[startCount].unsafeAddr, queue.cq.cqes, endIndex * sizeof(Cqe))
   else:
     copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
-  atomic_store_explicit(queue.cq.head, tail, moRelease)
+  queue.cq.head[].store(tail, moRelease)
 
 
 proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int {.discardable.} =

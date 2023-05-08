@@ -27,7 +27,7 @@ q.nop(cast[pointer](15)) # cq[2]
 q.nop(cast[pointer](16)) # cq[3]
 q.submit()
 
-assert SQ_CQ_OVERFLOW in q.sq.flags[]
+assert SQ_CQ_OVERFLOW in cast[SqringFlags](q.sq.flags[])
 assert q.cqReady() == 8
 var cqes = q.copyCqes() # flushed cqes
 assert cqes[0].userData == 1
@@ -61,4 +61,4 @@ assert cqes[4].userData == 13
 assert cqes[5].userData == 14
 assert cqes[6].userData == 15
 assert cqes[7].userData == 16
-assert SQ_CQ_OVERFLOW notin q.sq.flags[]
+assert SQ_CQ_OVERFLOW notin cast[SqringFlags](q.sq.flags[])
