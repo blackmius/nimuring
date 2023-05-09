@@ -29,7 +29,7 @@ proc get[T](p: var Pool[T], ind: int): ptr T =
 
 
 type
-  Callback = proc (res: Cqe): bool {.closure.}
+  Callback = proc (res: Cqe): bool {.gcsafe, closure.}
   ## Callback takes Cqe and return should loop dealloc Event
   ## or we waiting another cqe
   ## all resubmitting considered to be in that callback
@@ -64,7 +64,7 @@ template drainQueue(loop: Loop) =
       break
     sqe[] = loop.sqes.popFirst()
 
-proc poll*() =
+proc poll*() {.gcsafe.} =
   let loop = getLoop()
   loop.drainQueue()
   loop.q.submit()
@@ -77,7 +77,7 @@ proc poll*() =
     if likely(not ev.cb(cqe)):
       loop.events.dealloc(cqe.userData.int)
 
-proc runForever*() =
+proc runForever*() {.gcsafe.} =
   while true:
     poll()
 
@@ -159,7 +159,7 @@ proc acceptStream*(fd: AsyncFD): owned(FutureStream[AsyncFD]) =
   var retFuture = newFutureStream[AsyncFD]("accept")
   var accept_addr: SockAddr
   var accept_addr_len: SockLen
-  proc cb(cqe: Cqe): bool =
+  proc cb(cqe: Cqe): bool {.gcsafe.} =
     if cqe.res < 0:
       retFuture.complete()
       return true
