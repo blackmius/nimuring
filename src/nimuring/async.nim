@@ -211,3 +211,4 @@ proc sleepAsync*(ms: int | float): owned(Future[void]) =
 
 import std/async
 export async
+export Cqe

@@ -12,7 +12,7 @@ when defined(cpp):
 else:
   {.emit: "#include <stdatomic.h>".}
   proc atomic_load_explicit*[T](location: ptr T; order: MemoryOrder): T {.inline.} =
-    {.emit: ["return atomic_load_explicit((_Atomic ", T, " *)(", location, "), ", order, ");"].}
+    {.emit: "return atomic_load_explicit((_Atomic `T` *)(`location`), `order`);".}
   proc atomic_store_explicit*[T](location: ptr T; desired: T; order: MemoryOrder) {.inline.} =
     {.emit: ["atomic_store_explicit((_Atomic ", T, " *)(", location, "), ", desired, ", ", order, ");"].}
   proc atomic_thread_fence*(order: MemoryOrder) {.inline.} =
