@@ -16,6 +16,8 @@ Since the nature of io_uring is different from the nature of selectors, it is no
 
 Because of this, another event loop was implemented. But the interface for using async/await from the standard library has been preserved.
 
+moved here: https://github.com/blackmius/uasync
+
 ## Documentation
 
 Now there is no way to display the documentation in an acceptable form, so use man and read the code.
