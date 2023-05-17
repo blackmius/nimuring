@@ -232,6 +232,30 @@ proc cqReady*(queue: var Queue): uint32 =
   ## Matches the implementation of io_uring_cq_ready in liburing.
   return atomic_load_explicit(queue.cq.tail, moAcquire) - queue.cq.head[]
 
+
+proc waitReady(queue: var Queue; waitNr: uint = 0): uint32 {.inline.} =
+  result = queue.cqReady
+  if result == 0 and (queue.cqNeedsFlush or waitNr > 0):
+    discard enter(queue.fd, 0.cint, waitNr.cint, cast[cint]({EnterGetevents}), nil, 0.cint)
+    result = queue.cqReady
+
+proc copyCqesToSeq(queue: var Queue; cqes: seq[Cqe]; ready: uint32) {.inline.} =
+  var
+    head = queue.cq.head[]
+    tail = head + ready
+  let
+    startIndex = int(head and queue.cq.mask[])
+    endIndex = int(tail and queue.cq.mask[])
+    startCount = queue.cq.entries[].int - startIndex
+  
+  if startCount < ready.int:
+    # overflow needs 2 memcpy
+    copyMem(cqes[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
+    copyMem(cqes[startCount].unsafeAddr, queue.cq.cqes, endIndex * sizeof(Cqe))
+  else:
+    copyMem(cqes[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
+  atomic_store_explicit(queue.cq.head, tail, moRelease)
+
 proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   ## Copies as many CQEs as are ready.
   ## If none are available, enters into the kernel to wait for at most `wait_nr` CQEs.
@@ -243,27 +267,20 @@ proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
   ## Faster, because we can now amortize the atomic store release to `cq.head` across the batch.
   ## See https://github.com/axboe/liburing/issues/103#issuecomment-686665007.
   ## Matches the implementation of io_uring_peek_batch_cqe() in liburing, but supports waiting.
-  var ready = queue.cqReady
-  if ready == 0 and (queue.cqNeedsFlush or waitNr > 0):
-    discard enter(queue.fd, 0.cint, waitNr.cint, cast[cint]({EnterGetevents}), nil, 0.cint)
-    ready = queue.cqReady
+  var ready = queue.waitReady(waitNr)
   if ready == 0:
     return @[]
-  var
-    head = queue.cq.head[]
-    tail = head + ready
-  let
-    startIndex = int(head and queue.cq.mask[])
-    endIndex = int(tail and queue.cq.mask[])
-    startCount = queue.cq.entries[].int - startIndex
   newSeq[Cqe](result, ready)
-  if startCount < ready.int:
-    # overflow needs 2 memcpy
-    copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
-    copyMem(result[startCount].unsafeAddr, queue.cq.cqes, endIndex * sizeof(Cqe))
-  else:
-    copyMem(result[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
-  atomic_store_explicit(queue.cq.head, tail, moRelease)
+  copyCqesToSeq(queue, result, ready)
+ 
+proc copyCqes*(queue: var Queue; cqes: seq[Cqe]; waitNr: uint = 0): int =
+  ## same as copyCqes(queue, waitNr) but copy cqes to your array
+  ## returns copied cqe count
+  var ready = queue.waitReady(waitNr)
+  if ready == 0:
+    return ready.int
+  copyCqesToSeq(queue, cqes, ready)
+  return ready.int
 
 
 proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int {.discardable.} =

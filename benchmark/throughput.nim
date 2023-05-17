@@ -14,6 +14,7 @@ proc run(entries: int) =
   var count = 0
   # run 1 million nops to check queue throughput
   var time = cpuTime()
+  var cqes = newSeq[Cqe](entries*2)
   while count < repeat:
       for i in 0..<entries:
         var ev: ptr Event
@@ -23,11 +24,11 @@ proc run(entries: int) =
           ev = cast[ptr Event](i)
         q.nop(ev)
       q.submit()
-      let cqes = q.copyCqes(entries.uint)
+      let cqesCount = q.copyCqes(cqes, entries.uint)
       when defined(userdata):
-        for cqe in cqes:
-          dealloc(cast[ptr Event](cqe.userData))
-      count += cqes.len
+        for i in 0..<cqesCount:
+          dealloc(cast[ptr Event](cqes[i].userData))
+      count += cqesCount
   time = cpuTime() - time
   var rps = repeat / time
   echo q.params.sqEntries, " ", rps
