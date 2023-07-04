@@ -85,7 +85,7 @@ proc read*(sqe: SqePointer; fd: FileHandle; group_id: uint16, len: int, offset: 
   sqe.prepRw(OP_READ, fd, 0, len, offset)
 
 proc readv*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): SqePointer =
-  sqe.prepRw(OP_READV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
+  sqe.prepRw(OP_READV, fd, cast[pointer](iovecs[0].addr), len(iovecs), offset)
 
 proc readv*(sqe: SqePointer; fd: FileHandle; iovec: ptr IOVec; offset: int = 0): SqePointer =
   sqe.prepRw(OP_READV, fd, cast[pointer](iovec), 1, offset)
@@ -101,7 +101,7 @@ proc write*(sqe: SqePointer; fd: FileHandle; str: string; offset: int = 0): SqeP
   sqe.write(fd, cast[pointer](str.cstring), len(str), offset)
 
 proc writev*(sqe: SqePointer; fd: FileHandle; iovecs: seq[IOVec]; offset: int = 0): SqePointer =
-  sqe.prepRw(OP_WRITEV, fd, cast[pointer](iovecs[0].unsafeAddr), len(iovecs), offset)
+  sqe.prepRw(OP_WRITEV, fd, cast[pointer](iovecs[0].addr), len(iovecs), offset)
 
 proc write_fixed*(sqe: SqePointer; fd: FileHandle; iovec: IOVec, offset: int = 0, bufferIndex: int = 0): SqePointer =
   sqe.buf.bufIndex = bufferIndex.uint16
@@ -124,7 +124,7 @@ proc epoll_ctl*(sqe: SqePointer; epfd: FileHandle; fd: FileHandle; op: uint32; e
   sqe.prepRw(OP_EPOLL_CTL, epfd, cast[pointer](ev), op, fd)
 
 proc poll_add*(sqe: SqePointer; fd: FileHandle; poll_mask: uint32): SqePointer =
-  littleEndian32(addr result.op_flags.poll32Events, unsafeAddr poll_mask)
+  littleEndian32(addr result.op_flags.poll32Events, addr poll_mask)
   sqe.prepRw(OP_POLL_ADD, fd, nil, 1, 0)
 
 proc poll_multi*(sqe: SqePointer; fd: FileHandle; poll_mask: uint32): SqePointer =
@@ -135,7 +135,7 @@ proc poll_remove*(sqe: SqePointer; targetUserData: UserData): SqePointer =
   sqe.prepRw(OP_POLL_REMOVE, -1, target_user_data, 0, 0)
 
 proc poll_update*(sqe: SqePointer; oldUserData: UserData; newUserData: UserData; poll_mask: uint32, flags: uint32): SqePointer =
-  littleEndian32(addr result.op_flags.poll32Events, unsafeAddr poll_mask)
+  littleEndian32(addr result.op_flags.poll32Events, addr poll_mask)
   sqe.prepRw(OP_POLL_REMOVE, -1, oldUserData, int flags, cast[int](newUserData))
 
 
@@ -215,7 +215,7 @@ proc timeout_remove*(sqe: SqePointer; timeout_user_data: pointer; flags: Timeout
 
 proc link_timeout*(sqe: SqePointer; ts: Timespec; flags: TimeoutFlags): SqePointer =
   sqe.op_flags.timeoutFlags = flags
-  sqe.prepRw(OP_LINK_TIMEOUT, -1, cast[pointer](ts.unsafeAddr), 1, 0)
+  sqe.prepRw(OP_LINK_TIMEOUT, -1, cast[pointer](ts.addr), 1, 0)
 
 
 proc cancel*(sqe: SqePointer; cancelUserData: UserData; flags: uint32): SqePointer =
@@ -239,7 +239,7 @@ proc sync_file_range*(sqe: SqePointer; fd: FileHandle; len: int; flags: uint32; 
   sqe.prepRw(OP_SYNC_FILE_RANGE, fd, nil, len, offset)
 
 proc files_update*(sqe: SqePointer, fds: seq[FileHandle], offset: int = 0): SqePointer =
-  sqe.prepRw(OP_FILES_UPDATE, -1, cast[pointer](fds[0].unsafeAddr), fds.len, offset)
+  sqe.prepRw(OP_FILES_UPDATE, -1, cast[pointer](fds[0].addr), fds.len, offset)
 
 proc fadvice*(sqe: SqePointer, fd: FileHandle, len: int, advice: int, offset: int = 0): SqePointer =
   sqe.op_flags.fadvice_advice = advice

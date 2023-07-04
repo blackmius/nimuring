@@ -96,7 +96,7 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
   result.sqes = cast[ptr Sqe](OffSqes.uringMap(fd, 0, size, Sqe))
   result.init offset
 
-proc `=destroy`(queue: var Queue) =
+proc `=destroy`(queue: Queue) =
   ## tear down the queue
   if queue.fd != 0:
     discard close(queue.fd)
@@ -112,7 +112,7 @@ proc `=destroy`(queue: var Queue) =
 
 proc `=sink`(dest: var Queue, source: Queue) =
   # avoid unmapping uring object after moving
-  copyMem(dest.addr, source.unsafeAddr, sizeof Queue)
+  copyMem(dest.addr, source.addr, sizeof Queue)
 
 proc `=copy`(dest: var Queue; source: Queue) {.error: "Queue can has only one owner".}
 
@@ -250,10 +250,10 @@ proc copyCqesToSeq(queue: var Queue; cqes: seq[Cqe]; ready: uint32) {.inline.} =
   
   if startCount < ready.int:
     # overflow needs 2 memcpy
-    copyMem(cqes[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
-    copyMem(cqes[startCount].unsafeAddr, queue.cq.cqes, endIndex * sizeof(Cqe))
+    copyMem(cqes[0].addr, queue.cq.cqes + startIndex * sizeof(Cqe), startCount * sizeof(Cqe))
+    copyMem(cqes[startCount].addr, queue.cq.cqes, endIndex * sizeof(Cqe))
   else:
-    copyMem(cqes[0].unsafeAddr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
+    copyMem(cqes[0].addr, queue.cq.cqes + startIndex * sizeof(Cqe), ready.int * sizeof(Cqe))
   atomic_store_explicit(queue.cq.head, tail, moRelease)
 
 proc copyCqes*(queue: var Queue; waitNr: uint = 0): seq[Cqe] =
@@ -294,7 +294,7 @@ proc registerFiles*(q: var Queue; fds: seq[FileHandle]): int {.discardable.} =
   ## Registering file descriptors will wait for the ring to idle.
   ## Files are automatically unregistered by the kernel when the ring is torn down.
   ## An application need unregister only if it wants to register a new array of file descriptors.
-  return register(q.fd.cint, REGISTER_FILES.cint, fds[0].unsafeAddr, fds.len.cint)
+  return register(q.fd.cint, REGISTER_FILES.cint, fds[0].addr, fds.len.cint)
 
 proc registerFilesUpdate*(q: var Queue; offset: Off; fds: seq[FileHandle]): int {.discardable.} =
   ## Updates registered file descriptors.
@@ -307,9 +307,9 @@ proc registerFilesUpdate*(q: var Queue; offset: Off; fds: seq[FileHandle]): int 
   ## Adding new file descriptors must be done with `register_files`.
   let update = RsrcUpdate(
     offset: offset.uint32,
-    data: cast[uint64](fds[0].unsafeAddr)
+    data: cast[uint64](fds[0].addr)
   )
-  return register(q.fd.cint, REGISTER_FILES_UPDATE.cint, update.unsafeAddr, fds.len.cint)
+  return register(q.fd.cint, REGISTER_FILES_UPDATE.cint, update.addr, fds.len.cint)
 
 proc unregisterFiles*(q: var Queue;): int {.discardable.} =
   ## Unregisters all registered file descriptors previously associated with the ring.
@@ -319,14 +319,14 @@ proc registerEventFd*(q: var Queue; fd: FileHandle): int {.discardable.} =
   ## Registers the file descriptor for an eventfd that will be notified of completion events on
   ##  an io_uring instance.
   ## Only a single a eventfd can be registered at any given point in time.
-  return register(q.fd.cint, REGISTER_EVENTFD.cint, fd.unsafeAddr, 1)
+  return register(q.fd.cint, REGISTER_EVENTFD.cint, fd.addr, 1)
 
 proc registerEventFdAsync*(q: var Queue; fd: FileHandle): int {.discardable.} =
   ## Registers the file descriptor for an eventfd that will be notified of completion events on
   ## an io_uring instance. Notifications are only posted for events that complete in an async manner.
   ## This means that events that complete inline while being submitted do not trigger a notification event.
   ## Only a single eventfd can be registered at any given point in time.
-  return register(q.fd.cint, REGISTER_EVENTFD_ASYNC.cint, fd.unsafeAddr, 1)
+  return register(q.fd.cint, REGISTER_EVENTFD_ASYNC.cint, fd.addr, 1)
 
 proc unregisterEventFd*(q: var Queue;): int {.discardable.} =
   ## Unregister the registered eventfd file descriptor.
@@ -339,7 +339,7 @@ proc registerBuffers*(q: var Queue; buffers: seq[IOVec]): int {.discardable.} =
   ##   User buffers point to file-backed memory.
   ##   error occured then you try to pass pointer allocated on stack
   ##   use alloc or alloc0
-  return register(q.fd.cint, REGISTER_BUFFERS.cint, buffers[0].unsafeAddr, buffers.len.cint)
+  return register(q.fd.cint, REGISTER_BUFFERS.cint, buffers[0].addr, buffers.len.cint)
 
 proc unregisterBuffers*(q: var Queue;): int {.discardable.} =
   ## Unregister the registered buffers.
