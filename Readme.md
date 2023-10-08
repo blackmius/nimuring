@@ -109,6 +109,86 @@ queue.copyCqes(cqes)
 ## will not allocate new seq but copy to specified one
 ```
 
+### How to pass user data
+
+``` nim
+queue.getSqe().userData(41)
+# default is NOOP
+# userData can be any pointer of number
+queue.submit()
+echo queue.copyCqes(1)[0].userData
+# must be 41!
+```
+
+with that there is 2 ways to pass complex user data
+
+1. unref data and then free it yourself
+
+``` nim
+type
+  myObj = object
+    a: int
+    b: int
+let myobj = myObj(13, 37)
+echo myobj
+queue.getSqe().userData(myobj.addr)
+queue.submit()
+
+let cqes = queue.copyCqes(1)
+let myobj2 = cast[myObj](cqes[0].userData)
+echo myobj2
+```
+
+it works now because myobj is not freed by GC but for example if it was in a function call it will be a problem
+
+``` nim
+
+proc example() =
+  # let myobj = myObj(13, 37)
+  # firstly it cannot be stack allocated at all
+  
+  let myobj = new myObj(13, 37)
+  # ok not we allocated on heap but GC will clear it when example function is returned
+  GC_ref(myobj)
+  # then we say GC do not delete this object
+
+  queue.getSqe().userData(myobj.addr)
+  queue.submit()
+
+example()
+
+let cqes = queue.copyCqes(1)
+let myobj2 = cast[myObj](cqes[0].userData)
+echo myobj2
+
+# now we can track myobj again
+GC_unref(myobj2)
+```
+
+
+2. persist it in global stash so GC know it allways here ([for me](https://github.com/blackmius/uasync/blob/04bad3bce5bde9c7a48ae730b1c4b83e45592c32/src/uasync.nim#L12) it works faster)
+
+``` nim
+let myData = newSqe[ref myObj](4)
+
+proc example() =
+  myData.add(new myObj(13, 37))
+  let dataIndex = myData.len
+
+  queue.getSqe().userData(dataIndex)
+  queue.submit()
+
+example()
+
+let cqes = queue.copyCqes(1)
+
+let myobj = myData[cqes[0].userData]
+myData.delete(cqes[0].userData)
+
+echo myobj
+```
+
+
 ### That's all the api
 
 There are of course more but it all documented in man files like registering fd/buffers/files
