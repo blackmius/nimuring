@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os:             [ubuntu-latest]
-        nim-channel:    [devel]
+        nim-channel:    [2.0]
 
     name: ${{ matrix.os }}-${{ matrix.nim-channel }}
     runs-on: ${{ matrix.os }}
