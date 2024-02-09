@@ -58,7 +58,7 @@ sqe.write(stdout.getFileHandle, "Hello world\n")
 # proc write*(sqe: SqePointer; fd: FileHandle; str: string; offset: int = 0): SqePointer
 
 queue.submit()
-# all alocated previosly sqes will be submited
+# all allocated previosly sqes will be submited
 
 echo q.copyCqes(1)
 # waits until completing
