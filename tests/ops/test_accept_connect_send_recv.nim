@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import posix
 import net
@@ -26,7 +27,7 @@ try:
 
     var accept_addr: SockAddr
     var accept_addr_len: SockLen
-    assert accept_addr_len.int == 0
+    check accept_addr_len.int == 0
     q.accept(userData=ACCEPT, server.getFd, addr accept_addr, addr accept_addr_len, 0)
 
     var sa: Sockaddr_storage
@@ -40,7 +41,7 @@ try:
     let acceptCqe = cqes.findCqe(ACCEPT)
     listener = newSocket(cast[SocketHandle](acceptCqe.res))
 
-    assert accept_addr_len.int == 16
+    check accept_addr_len.int == 16
 
     var bufferSend = ['\x01', '\x00', '\x01', '\x00', '\x01', '\x00', '\x01', '\x00', '\x01', '\x00']
     var bufferRecv: array[6, char]
@@ -50,7 +51,7 @@ try:
     q.submit(2)
 
     for i in 0..<bufferRecv.len:
-        assert bufferSend[i] == bufferRecv[i]
+        check bufferSend[i] == bufferRecv[i]
     
 finally:
     # Socket has no graceful =destroy

@@ -1,3 +1,4 @@
+import balls
 import nimuring
 from posix import Sockaddr_storage, SockLen, IOvec, Tmsghdr
 import net
@@ -44,7 +45,7 @@ try:
     q.submit(2)
 
     for i in 0..<bufferRecv.len:
-        assert bufferSend[i] == bufferRecv[i]
+        check bufferSend[i] == bufferRecv[i]
 
 finally:
     # Socket has no graceful =destroy

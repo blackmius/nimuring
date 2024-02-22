@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import posix
 import std/os
@@ -27,14 +28,14 @@ q.readv(cast[pointer](0xffffffff), fd, iovecsRead, offset)
 q.submit(waitNr=3)
 
 var cqes = q.copyCqes(3)
-assert cqes[0].userData == 0xdddddddd.uint64
-assert cqes[0].res == 128
+check cqes[0].userData == 0xdddddddd.uint64
+check cqes[0].res == 128
 
-assert cqes[1].userData == 0xeeeeeeee.uint64
-assert cqes[1].res == 0
+check cqes[1].userData == 0xeeeeeeee.uint64
+check cqes[1].res == 0
 
-assert cqes[2].userData == 0xffffffff.uint64
-assert cqes[2].res == 128
+check cqes[2].userData == 0xffffffff.uint64
+check cqes[2].res == 128
 
 for i in 0..high(writeBuffer):
-    assert writeBuffer[i] == readBuffer[i]
+    check writeBuffer[i] == readBuffer[i]

@@ -1,3 +1,4 @@
+import balls
 import nimuring
 
 var q1 = newQueue(4, {})
@@ -13,7 +14,7 @@ q2.nop(2)
 q2.nop(3)
 
 q2.submit()
-assert q2.copyCqes().len == 4
+check q2.copyCqes().len == 4
 
 q1.submit()
-assert q1.copyCqes().len == 4
+check q1.copyCqes().len == 4

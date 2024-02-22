@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import std/os
 
@@ -21,14 +22,14 @@ q.submit()
 
 var cqes = q.copyCqes(2)
 
-assert cqes[0].userData == 1
-assert cqes[0].res == 10
+check cqes[0].userData == 1
+check cqes[0].res == 10
 
-assert cqes[1].userData == 2
-assert cqes[1].res == 10
+check cqes[1].userData == 2
+check cqes[1].res == 10
 
 for i in 0..<10:
-    assert writeBuffer[i] == readBuffer[i]
+    check writeBuffer[i] == readBuffer[i]
 
 for i in 10..high(writeBuffer):
-    assert writeBuffer[i] != readBuffer[i]
+    check writeBuffer[i] != readBuffer[i]

@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import std/os
 import posix
@@ -27,11 +28,11 @@ q.submit()
 
 var cqes = q.copyCqes(2)
 
-assert cqes[0].userData == 1
-assert cqes[0].res == 11
+check cqes[0].userData == 1
+check cqes[0].res == 11
 
-assert cqes[1].userData == 2
-assert cqes[1].res == 11
+check cqes[1].userData == 2
+check cqes[1].res == 11
 
 for i in 0..10:
-    assert readBuffer[i] == writeBuffer[i]
+    check readBuffer[i] == writeBuffer[i]

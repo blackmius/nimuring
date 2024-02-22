@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import posix
 
@@ -11,10 +12,10 @@ q.readv(cast[pointer](0xcccccccc), fd, iovecs)
 q.submit()
 
 var cqes = q.copyCqes(1)
-assert cqes[0].userData == 0xcccccccc.uint64
+check cqes[0].userData == 0xcccccccc.uint64
 
-assert cqes[0].userData == 0xcccccccc.uint64
-assert cqes[0].res == 128
+check cqes[0].userData == 0xcccccccc.uint64
+check cqes[0].res == 128
 
 for i in 0..high(buffer):
-    assert buffer[i] == 0
+    check buffer[i] == 0

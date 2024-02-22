@@ -1,3 +1,4 @@
+import balls
 import nimuring
 import posix
 import os
@@ -9,5 +10,5 @@ const path = getTempDir() / "test_io_uring_openat";
 q.openat(0, 0, path, O_CLOEXEC or O_RDWR or O_CREAT)
 q.submit(1)
 
-assert fileExists(path)
+check fileExists(path)
 removeFile(path)
