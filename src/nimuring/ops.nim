@@ -403,7 +403,7 @@ proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; buffer: pointer
   ## io_uring will recv directly into this buffer
   q.getSqe().recv(sock, buffer, len, flags).setUserData(userData)
 
-proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; size: int; flags: cint = 0): owned(string) =
+proc recv*(q: var Queue; userData: UserData; sock: SocketHandle; size: int; flags: cint = 0): string =
   result = newString(size)
   q.getSqe().recv(sock, result.cstring, size, flags).setUserData(userData)
 

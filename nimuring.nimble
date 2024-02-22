@@ -6,9 +6,5 @@ description   = "io_uring wrapper"
 license       = "MIT"
 srcDir        = "src"
 
-# Dependencies
-
-requires "nim >= 1.6.10"
-
-task test, "Run tests":
-  exec "testament all"
+when declared(taskRequires):
+  taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0"

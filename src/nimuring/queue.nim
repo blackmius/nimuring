@@ -96,7 +96,7 @@ proc newRing(fd: FileHandle; offset: ptr SqringOffsets; size: uint32): SqRing =
   result.sqes = cast[ptr Sqe](OffSqes.uringMap(fd, 0, size, Sqe))
   result.init offset
 
-proc `=destroy`(queue: Queue) =
+template destroyImpl() {.dirty.} =
   ## tear down the queue
   if queue.fd != 0:
     discard close(queue.fd)
@@ -109,6 +109,14 @@ proc `=destroy`(queue: Queue) =
   if queue.params != nil:
     deallocShared(queue.params)
 
+when defined(isNimSkull):
+  echo "heh"
+  proc `=destroy`(queue: var Queue) =
+    destroyImpl
+else:
+  proc `=destroy`(queue: Queue) =
+    destroyImpl
+
 
 proc `=sink`(dest: var Queue, source: Queue) =
   # avoid unmapping uring object after moving
@@ -118,7 +126,7 @@ proc `=copy`(dest: var Queue; source: Queue) {.error: "Queue can has only one ow
 
 proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
-proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): owned(Queue) =
+proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): Queue =
   assert sqEntries.isPowerOfTwo, "Entries must be in the power of two"
   var params = createShared(Params)
   params.flags = flags

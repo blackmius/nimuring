@@ -13,21 +13,69 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:             [ubuntu-latest]
-        nim-channel:    [2.0.0]
+        os: [ubuntu-latest]
+        compiler:
+          - name: nim
+            version: devel
 
-    name: ${{ matrix.os }}-${{ matrix.nim-channel }}
+          - name: nimskull
+            version: "*"
+
+    name: "${{ matrix.os }} (${{ matrix.compiler.name }} ${{ matrix.compiler.version }})"
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: project
 
-    - name: Setup nim
-      uses: jiro4989/setup-nim-action@v1
-      with:
-        nim-version: ${{ matrix.nim-channel }}
+      - name: Compiler (nim)
+        if: matrix.compiler.name == 'nim'
+        uses: alaviss/setup-nim@0.1.1
+        with:
+          path: nim
+          version: ${{ matrix.compiler.version }}
 
-    - name: Test
-      shell: bash
-      run: |
-        nim --version
-        nimble test
+      - name: Compiler (nimskull)
+        id: nimskull
+        if: matrix.compiler.name == 'nimskull'
+        uses: nim-works/setup-nimskull@0.1.0
+        with:
+          nimskull-version: ${{ matrix.compiler.version }}
+
+      - if: matrix.compiler.name == 'nimskull'
+        name: Fetch nimble's fork for nimskull
+        uses: actions/checkout@v4
+        with:
+          path: nimble
+          repository: alaviss/nimble
+          ref: nimskull
+
+      - if: matrix.compiler.name == 'nimskull'
+        name: Build nimble and add to PATH
+        shell: bash
+        run: |
+          cd nimble
+          nim c -d:release -o:nimble src/nimble.nim
+          cp nimble "$NIMSKULL_BIN/nimble"
+          # Add nimble binary folder to PATH too
+          echo "$HOME/.nimble/bin" >> $GITHUB_PATH
+        env:
+          NIMSKULL_BIN: ${{ steps.nimskull.outputs.bin-path }}
+      
+      - name: Dependencies
+        shell: bash
+        run: |
+          cd project
+          nimble --accept develop
+          nimble --accept install "https://github.com/disruptek/balls"
+        env:
+          NIM: ${{ matrix.compiler.name }}
+      
+      - name: Tests
+        shell: bash
+        run: |
+          cd project
+          balls --path="." --backend:c --mm:arc --mm:orc --errorMax:3
+        env:
+          NIM: ${{ matrix.compiler.name }}
