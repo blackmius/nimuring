@@ -60,6 +60,8 @@ type
     overflow*: ptr int
     cqes: pointer
 
+  NimuringError* = object of CatchableError
+
 const
   defaultFlags: SetupFlags = {}
 
@@ -69,7 +71,8 @@ proc init(ring: var Ring; offset: ptr Offsets) =
   ring.tail = cast[ptr uint32](ring.ring + offset.tail)
   ring.mask = cast[ptr uint32](ring.ring + offset.ring_mask)
   ring.entries = cast[ptr uint32](ring.ring + offset.ring_entries)
-  assert offset.ring_entries > 0
+  if offset.ring_entries <= 0:
+    raise newException(NimuringError, "io_uring is not initiated")
 
 proc newRing(fd: FileHandle; offset: ptr CqringOffsets; size: uint32): CqRing =
   ## mmap a Cq ring from the given file-descriptor, using the size spec'd
@@ -110,7 +113,6 @@ template destroyImpl() {.dirty.} =
     deallocShared(queue.params)
 
 when defined(isNimSkull):
-  echo "heh"
   proc `=destroy`(queue: var Queue) =
     destroyImpl
 else:
@@ -127,7 +129,8 @@ proc `=copy`(dest: var Queue; source: Queue) {.error: "Queue can has only one ow
 proc isPowerOfTwo(x: int): bool = (x != 0) and ((x and (x - 1)) == 0)
 
 proc newQueue*(sqEntries: int; flags = defaultFlags; sqThreadCpu = 0; sqThreadIdle = 0; wqFd = 0; cqEntries = 0): Queue =
-  assert sqEntries.isPowerOfTwo, "Entries must be in the power of two"
+  if not sqEntries.isPowerOfTwo:
+    raise newException(NimuringError, "Entries must be in the power of two")
   var params = createShared(Params)
   params.flags = flags
   params.sqThreadCpu = sqThreadCpu.uint32

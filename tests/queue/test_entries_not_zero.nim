@@ -1,6 +1,5 @@
-discard """
-  exitcode: 1
-"""
+import balls
 import nimuring
 
-discard newQueue(0)
+expect NimuringError:
+  discard newQueue(0)
