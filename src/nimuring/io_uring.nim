@@ -1695,7 +1695,7 @@ type
     opsLen*: uint8 ##  length of ops[] array below
     resv*: uint16
     resv2*: array[3, uint32]
-    ops*: ref ProbeOp
+    ops*: ptr ProbeOp
 
   Restriction* = object
     opcode*: RestrictionOp
