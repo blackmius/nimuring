@@ -1013,7 +1013,7 @@ proc setup*(entries: cint, params: ptr Params): FileHandle =
 ## Closing the file descriptor returned by `setup` will free all resources associated with the io_uring context.
 
 proc enter*(fd: cint, toSubmit: cint, minComplete: cint,
-                         flags: cint, sig: ref Sigset, sz: cint): cint =
+                         flags: cint, sig: ptr Sigset, sz: cint): cint =
   ## enter is used to initiate and complete I/O using the shared submission and completion queues setup by a call to `setup`.
   ## A single call can both submit new I/O and wait for completions of I/O initiated by this call or previous calls to `enter()`.
   ##
