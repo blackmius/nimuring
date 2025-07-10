@@ -40,7 +40,7 @@ suite "copyCqes overflow behavior":
   test "copyCqes returns correct values after overflow":
     var q = newQueue(4, {})
     overflow_queue()
-    var cqes = q.copyCqes() # flushed cqes
+    var cqes = q.copyCqes(1)
     check cqes[0].userData == 1
     check cqes[1].userData == 2
     check cqes[2].userData == 3
@@ -49,18 +49,12 @@ suite "copyCqes overflow behavior":
     check cqes[5].userData == 6
     check cqes[6].userData == 7
     check cqes[7].userData == 8
-
-  test "can submit tasks again after flush":
-    var q = newQueue(4, {})
-    overflow_queue()
-    discard q.copyCqes(1)
-    q.nop(cast[pointer](17)) # cq[0]
-    q.nop(cast[pointer](18)) # cq[1]
-    q.nop(cast[pointer](19)) # cq[2]
-    q.nop(cast[pointer](20)) # cq[3]
-    q.submit()
-    var cqes = q.copyCqes(1)
-    check cqes[0].userData == 17
-    check cqes[1].userData == 18
-    check cqes[2].userData == 19
-    check cqes[3].userData == 20
+    cqes = q.copyCqes(1)
+    check cqes[0].userData == 9
+    check cqes[1].userData == 10
+    check cqes[2].userData == 11
+    check cqes[3].userData == 12
+    check cqes[4].userData == 13
+    check cqes[5].userData == 14
+    check cqes[6].userData == 15
+    check cqes[7].userData == 16
