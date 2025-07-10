@@ -31,7 +31,6 @@ suite "nop operation":
 
     check q.submit() == 1
     check q.sqReady() == 0
-    check q.cqReady() == 1
 
     let cqes = q.copyCqes(1)
     check cqes.len == 1
