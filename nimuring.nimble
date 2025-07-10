@@ -6,8 +6,7 @@ description   = "io_uring wrapper"
 license       = "MIT"
 srcDir        = "src"
 
-when declared(taskRequires):
-  taskRequires "test", "unittest2"
+requires "unittest2"
 
 task test, "Run all tests" :
   exec "nimble --verbose c -r tests/test_all.nim"
