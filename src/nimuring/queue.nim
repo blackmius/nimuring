@@ -112,12 +112,8 @@ template destroyImpl() {.dirty.} =
   if queue.params != nil:
     deallocShared(queue.params)
 
-when defined(isNimSkull):
-  proc `=destroy`(queue: var Queue) =
-    destroyImpl
-else:
-  proc `=destroy`(queue: Queue) =
-    destroyImpl
+proc `=destroy`(queue: Queue) =
+  destroyImpl
 
 
 proc `=sink`(dest: var Queue, source: Queue) =

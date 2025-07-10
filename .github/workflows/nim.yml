@@ -1,81 +1,11 @@
-name: Nim CI
-
+name: CI
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
-  Test:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        compiler:
-          - name: nim
-            version: devel
-
-          - name: nimskull
-            version: "*"
-
-    name: "${{ matrix.os }} (${{ matrix.compiler.name }} ${{ matrix.compiler.version }})"
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          path: project
-
-      - name: Compiler (nim)
-        if: matrix.compiler.name == 'nim'
-        uses: alaviss/setup-nim@0.1.1
-        with:
-          path: nim
-          version: ${{ matrix.compiler.version }}
-
-      - name: Compiler (nimskull)
-        id: nimskull
-        if: matrix.compiler.name == 'nimskull'
-        uses: nim-works/setup-nimskull@0.1.0
-        with:
-          nimskull-version: ${{ matrix.compiler.version }}
-
-      - if: matrix.compiler.name == 'nimskull'
-        name: Fetch nimble's fork for nimskull
-        uses: actions/checkout@v4
-        with:
-          path: nimble
-          repository: alaviss/nimble
-          ref: nimskull
-
-      - if: matrix.compiler.name == 'nimskull'
-        name: Build nimble and add to PATH
-        shell: bash
-        run: |
-          cd nimble
-          nim c -d:release -o:nimble src/nimble.nim
-          cp nimble "$NIMSKULL_BIN/nimble"
-          # Add nimble binary folder to PATH too
-          echo "$HOME/.nimble/bin" >> $GITHUB_PATH
-        env:
-          NIMSKULL_BIN: ${{ steps.nimskull.outputs.bin-path }}
-      
-      - name: Dependencies
-        shell: bash
-        run: |
-          cd project
-          nimble --accept develop
-          nimble --accept install "https://github.com/disruptek/balls"
-        env:
-          NIM: ${{ matrix.compiler.name }}
-      
-      - name: Tests
-        shell: bash
-        run: |
-          cd project
-          balls --path="." --backend:c --mm:arc --mm:orc --errorMax:3
-        env:
-          NIM: ${{ matrix.compiler.name }}
+  build:
+    uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@main
