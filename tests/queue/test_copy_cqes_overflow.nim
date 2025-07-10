@@ -53,7 +53,7 @@ suite "copyCqes overflow behavior":
   test "can submit tasks again after flush":
     var q = newQueue(4, {})
     overflow_queue()
-    discard q.copyCqes()
+    discard q.copyCqes(1)
     q.nop(cast[pointer](17)) # cq[0]
     q.nop(cast[pointer](18)) # cq[1]
     q.nop(cast[pointer](19)) # cq[2]
@@ -68,7 +68,7 @@ suite "copyCqes overflow behavior":
   test "copyCqes returns overflown cqes":
     var q = newQueue(4, {})
     overflow_queue()
-    discard q.copyCqes()
+    discard q.copyCqes(1)
     q.nop(cast[pointer](17)) # cq[0]
     q.nop(cast[pointer](18)) # cq[1]
     q.nop(cast[pointer](19)) # cq[2]
