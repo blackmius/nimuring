@@ -7,6 +7,3 @@ license       = "MIT"
 srcDir        = "src"
 
 requires "unittest2"
-
-task test, "Run all tests" :
-  exec "nimble --verbose c -r tests/test_all.nim"
