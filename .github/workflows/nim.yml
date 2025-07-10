@@ -34,5 +34,5 @@ jobs:
           nimble --version
           gcc --version
           nimble install -y --depsOnly
-          find tests -name 'test_*.nim' | awk '{print "include \"" $0 "\""}' > tests/test_all.nim
+          find tests -name 'test_*.nim' | sed 's|^tests/|./|' | awk '{print "import \"" $0 "\""}' > tests/test_all.nim
           nim r tests/test_all.nim
