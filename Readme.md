@@ -1,6 +1,6 @@
 > [!NOTE]
 > **This repository is archived.**  
-> The code from this project has been accepted into the official compiler, which has already fixed several bugs. Because the project is now better maintained within the compiler itself, there is no longer a reason to maintain a separate library. Please use the official compiler implementation going forward.
+> The code from this project has been accepted into the official compiler (nimony), which has already fixed several bugs. Because the project is now better maintained within the compiler itself, there is no longer a reason to maintain a separate library. Please use the official compiler implementation going forward.
 
 
 # nimlang io_uring (nimuring)
